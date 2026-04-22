@@ -11,12 +11,10 @@ body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;background:linear-gr
 h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
 .subtitle{text-align:center;color:#666;margin-bottom:8px;font-size:.92rem}
 .sort-info{text-align:center;color:#888;font-size:.8rem;margin-bottom:20px;background:#f0f4ff;border-radius:8px;padding:7px 12px;border-left:3px solid #667eea}
-/* Login */
 .login-box{max-width:360px;margin:0 auto}
 .login-box input{width:100%;padding:12px 16px;border:2px solid #ddd;border-radius:10px;font-size:1rem;margin-bottom:12px;outline:none;transition:border .3s}
 .login-box input:focus{border-color:#667eea}
 .login-error{color:#d63031;font-size:.85rem;margin-bottom:10px;display:none}
-/* Upload */
 .upload-area{border:3px dashed #667eea;border-radius:15px;padding:45px 20px;text-align:center;cursor:pointer;transition:all .3s;background:linear-gradient(135deg,rgba(102,126,234,.04),rgba(118,75,162,.04));margin-bottom:16px}
 .upload-area:hover,.upload-area.dragover{border-color:#764ba2;background:linear-gradient(135deg,rgba(102,126,234,.1),rgba(118,75,162,.1));transform:translateY(-2px)}
 .upload-icon{font-size:3rem;margin-bottom:10px}
@@ -32,8 +30,6 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .btn:disabled{background:#ccc;cursor:not-allowed;transform:none;box-shadow:none}
 .btn-outline{background:transparent;color:#667eea;border:2px solid #667eea;margin-top:10px}
 .btn-outline:hover{background:#667eea;color:#fff}
-.btn-danger{background:linear-gradient(135deg,#e17055,#d63031)}
-/* Results */
 .results{margin-top:24px}
 .result-item{background:#fff;border-left:4px solid #667eea;padding:16px;border-radius:10px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -41,7 +37,11 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .result-badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:3px 12px;border-radius:16px;font-size:.78rem;font-weight:600}
 .result-badge.error{background:#ff7675}
 .order-card{background:#f8f9fa;padding:10px 14px;border-radius:8px;margin-bottom:6px;border-left:3px solid #764ba2;font-size:.85rem;line-height:1.7}
-.order-label{font-weight:600;color:#667eea;min-width:100px;display:inline-block}
+.order-label{font-weight:600;color:#667eea;min-width:90px;display:inline-block;vertical-align:top;padding-top:5px}
+.editable-field{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 100px);display:inline-block;transition:border .2s}
+.editable-field:focus{outline:none;border-color:#667eea;background:#f0f4ff}
+.editable-field:hover{border-color:#aaa}
+.field-row{margin-bottom:6px}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none !important}
@@ -52,7 +52,6 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
   <h1>📄 OCR 訂單處理系統</h1>
   <p class="subtitle">支援 PDF + 圖片 ｜ 一般訂單 & 合約品項自動辨識 ｜ 多品項自動拆分</p>
 
-  <!-- 登入區 -->
   <div id="loginSection" class="hidden">
     <div class="login-box" style="margin-top:30px">
       <h3 style="text-align:center;color:#667eea;margin-bottom:16px">🔒 請輸入密碼</h3>
@@ -62,7 +61,6 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
     </div>
   </div>
 
-  <!-- 主功能區 -->
   <div id="mainSection" class="hidden">
     <div class="sort-info">
       📋 <b>處理順序：</b>PDF 依頁面順序 ｜ 多檔案依檔名自然排序 (1 &lt; 2 &lt; 10)
@@ -94,7 +92,6 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
 
-// ===== 登入 =====
 async function checkAuth() {
   try {
     const r = await fetch('/auth/status');
@@ -113,7 +110,6 @@ async function doLogin() {
 }
 function showMain() { $('mainSection').classList.remove('hidden'); }
 
-// ===== 檔案上傳 =====
 $('uploadArea').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', e => handleFiles(e.target.files));
 $('uploadArea').addEventListener('dragover', e => { e.preventDefault(); $('uploadArea').classList.add('dragover'); });
@@ -149,9 +145,6 @@ function renderFileList() {
   });
 }
 
-function formatBytes(b){return b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB'}
-
-// ===== 預覽 =====
 $('previewBtn').addEventListener('click', async () => {
   if(!selectedFiles.length) return;
   $('previewBtn').disabled=true;
@@ -171,9 +164,24 @@ $('previewBtn').addEventListener('click', async () => {
   finally { $('previewBtn').disabled=false; $('previewBtn').textContent='📋 預覽 OCR 結果'; }
 });
 
-// ===== 寫入 =====
 $('submitBtn').addEventListener('click', async () => {
   if(!pendingOrders.length) return;
+  
+  // 收集編輯後的值
+  document.querySelectorAll('.editable-field').forEach(input => {
+    const idx = parseInt(input.dataset.orderIdx);
+    const field = input.dataset.field;
+    const val = input.value.trim();
+    
+    if (pendingOrders[idx]) {
+      if (['qty', 'price', 'total'].includes(field)) {
+        pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
+      } else {
+        pendingOrders[idx][field] = val;
+      }
+    }
+  });
+  
   $('submitBtn').disabled=true;
   $('submitBtn').innerHTML='<span class="loading"></span>寫入中...';
   try {
@@ -187,11 +195,11 @@ $('submitBtn').addEventListener('click', async () => {
   finally { $('submitBtn').disabled=false; $('submitBtn').textContent='✅ 確認寫入 Google Sheet'; }
 });
 
-// ===== 結果顯示 =====
 function displayResults(resultsData, showSubmit) {
   const el = $('results');
-  el.innerHTML = '<h2 style="color:#667eea;margin-bottom:16px">📊 OCR 結果</h2>';
+  el.innerHTML = '<h2 style="color:#667eea;margin-bottom:16px">📊 OCR 結果（可直接點擊修改）</h2>';
 
+  let globalIdx = 0;
   resultsData.forEach(r => {
     const div = document.createElement('div');
     div.className = 'result-item';
@@ -204,8 +212,22 @@ function displayResults(resultsData, showSubmit) {
 
       let ordersHTML = '';
       orders.forEach((o,i)=>{
-        const fields = ['po_no','type','hospital','item','qty','price','total','brand','dept','user','ext','note'].filter(k=>o[k]&&o[k]!=='0'&&o[k]!==0);
-        ordersHTML += `<div class="order-card"><div style="font-weight:700;color:#764ba2;margin-bottom:4px">品項 ${i+1}: ${o.item||'—'}</div>${fields.map(k=>`<span class="order-label">${k}:</span> ${o[k]}<br>`).join('')}</div>`;
+        const fields = ['po_no','type','hospital','item','qty','price','total','brand','dept','user','ext','note'];
+        const visibleFields = fields.filter(k=>o[k]!==undefined && o[k]!=='0' && o[k]!==0 && o[k]!=='');
+        
+        ordersHTML += `<div class="order-card">
+          <div style="font-weight:700;color:#764ba2;margin-bottom:8px">品項 ${i+1}</div>`;
+        
+        visibleFields.forEach(k=>{
+          const val = o[k] || '';
+          ordersHTML += `<div class="field-row">
+            <span class="order-label">${k}:</span>
+            <input type="text" class="editable-field" value="${val}" data-order-idx="${globalIdx}" data-field="${k}">
+          </div>`;
+        });
+        
+        ordersHTML += `</div>`;
+        globalIdx++;
       });
 
       div.innerHTML = `<div class="result-header"><span class="result-filename">✅ ${r.filename}</span><span class="result-badge">${r.items_count} 品項</span></div>${ordersHTML}`;
@@ -219,7 +241,6 @@ function displayResults(resultsData, showSubmit) {
   }
 }
 
-// 啟動
 checkAuth();
 </script>
 </body>
