@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OCR 訂單處理系統</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
+.container{background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:40px;max-width:850px;width:100%}
+h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+.subtitle{text-align:center;color:#666;margin-bottom:8px;font-size:.92rem}
+.sort-info{text-align:center;color:#888;font-size:.8rem;margin-bottom:20px;background:#f0f4ff;border-radius:8px;padding:7px 12px;border-left:3px solid #667eea}
+/* Login */
+.login-box{max-width:360px;margin:0 auto}
+.login-box input{width:100%;padding:12px 16px;border:2px solid #ddd;border-radius:10px;font-size:1rem;margin-bottom:12px;outline:none;transition:border .3s}
+.login-box input:focus{border-color:#667eea}
+.login-error{color:#d63031;font-size:.85rem;margin-bottom:10px;display:none}
+/* Upload */
+.upload-area{border:3px dashed #667eea;border-radius:15px;padding:45px 20px;text-align:center;cursor:pointer;transition:all .3s;background:linear-gradient(135deg,rgba(102,126,234,.04),rgba(118,75,162,.04));margin-bottom:16px}
+.upload-area:hover,.upload-area.dragover{border-color:#764ba2;background:linear-gradient(135deg,rgba(102,126,234,.1),rgba(118,75,162,.1));transform:translateY(-2px)}
+.upload-icon{font-size:3rem;margin-bottom:10px}
+.badges{display:flex;justify-content:center;gap:6px;margin-top:10px;flex-wrap:wrap}
+.badge{padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:600}
+.badge-pdf{background:#ffeaa7;color:#d63031}.badge-img{background:#dfe6e9;color:#636e72}
+#fileInput{display:none}
+.file-list{margin-top:16px}
+.file-item{background:#f8f9fa;padding:12px 16px;border-radius:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
+.file-name{font-weight:500;color:#333}.file-meta{color:#999;font-size:.78rem;margin-left:6px}
+.btn{width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:1.05rem;font-weight:600;cursor:pointer;transition:all .3s;margin-top:16px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(102,126,234,.4)}
+.btn:disabled{background:#ccc;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-outline{background:transparent;color:#667eea;border:2px solid #667eea;margin-top:10px}
+.btn-outline:hover{background:#667eea;color:#fff}
+.btn-danger{background:linear-gradient(135deg,#e17055,#d63031)}
+/* Results */
+.results{margin-top:24px}
+.result-item{background:#fff;border-left:4px solid #667eea;padding:16px;border-radius:10px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.result-filename{font-weight:600;color:#333;font-size:.92rem}
+.result-badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:3px 12px;border-radius:16px;font-size:.78rem;font-weight:600}
+.result-badge.error{background:#ff7675}
+.order-card{background:#f8f9fa;padding:10px 14px;border-radius:8px;margin-bottom:6px;border-left:3px solid #764ba2;font-size:.85rem;line-height:1.7}
+.order-label{font-weight:600;color:#667eea;min-width:100px;display:inline-block}
+.loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.hidden{display:none !important}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>📄 OCR 訂單處理系統</h1>
+  <p class="subtitle">支援 PDF + 圖片 ｜ 一般訂單 & 合約品項自動辨識 ｜ 多品項自動拆分</p>
+
+  <!-- 登入區 -->
+  <div id="loginSection" class="hidden">
+    <div class="login-box" style="margin-top:30px">
+      <h3 style="text-align:center;color:#667eea;margin-bottom:16px">🔒 請輸入密碼</h3>
+      <input type="password" id="passwordInput" placeholder="密碼" autocomplete="off">
+      <div class="login-error" id="loginError"></div>
+      <button class="btn" id="loginBtn" onclick="doLogin()">登入</button>
+    </div>
+  </div>
+
+  <!-- 主功能區 -->
+  <div id="mainSection" class="hidden">
+    <div class="sort-info">
+      📋 <b>處理順序：</b>PDF 依頁面順序 ｜ 多檔案依檔名自然排序 (1 &lt; 2 &lt; 10)
+    </div>
+
+    <div class="upload-area" id="uploadArea">
+      <div class="upload-icon">📤</div>
+      <h3 style="color:#667eea;font-weight:600">拖放檔案到這裡，或點擊選擇</h3>
+      <p style="color:#999;font-size:.85rem;margin-top:4px">最多 20 個檔案，單檔上限 20MB</p>
+      <div class="badges">
+        <span class="badge badge-pdf">📑 PDF</span>
+        <span class="badge badge-img">🖼 JPG</span>
+        <span class="badge badge-img">🖼 PNG</span>
+        <span class="badge badge-img">🖼 WEBP</span>
+        <span class="badge badge-img">🖼 BMP</span>
+      </div>
+    </div>
+    <input type="file" id="fileInput" multiple accept="image/*,.pdf">
+
+    <div class="file-list" id="fileList"></div>
+    <button class="btn" id="previewBtn" disabled>📋 預覽 OCR 結果</button>
+    <button class="btn btn-outline hidden" id="submitBtn">✅ 確認寫入 Google Sheet</button>
+
+    <div class="results" id="results"></div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let selectedFiles = [], pendingOrders = [];
+
+// ===== 登入 =====
+async function checkAuth() {
+  try {
+    const r = await fetch('/auth/status');
+    const d = await r.json();
+    if (!d.required || d.authenticated) { showMain(); return; }
+    $('loginSection').classList.remove('hidden');
+    $('passwordInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  } catch(e) { showMain(); }
+}
+async function doLogin() {
+  const pw = $('passwordInput').value;
+  if (!pw) return;
+  const r = await fetch('/login', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({password:pw})});
+  if (r.ok) { $('loginSection').classList.add('hidden'); showMain(); }
+  else { $('loginError').textContent='密碼錯誤'; $('loginError').style.display='block'; }
+}
+function showMain() { $('mainSection').classList.remove('hidden'); }
+
+// ===== 檔案上傳 =====
+$('uploadArea').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', e => handleFiles(e.target.files));
+$('uploadArea').addEventListener('dragover', e => { e.preventDefault(); $('uploadArea').classList.add('dragover'); });
+$('uploadArea').addEventListener('dragleave', () => $('uploadArea').classList.remove('dragover'));
+$('uploadArea').addEventListener('drop', e => { e.preventDefault(); $('uploadArea').classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+
+function naturalSort(a, b) {
+  const re=/(\d+)/g, ap=a.name.toLowerCase().split(re), bp=b.name.toLowerCase().split(re);
+  for(let i=0;i<Math.max(ap.length,bp.length);i++){
+    const av=ap[i]||'',bv=bp[i]||'',an=parseInt(av),bn=parseInt(bv);
+    if(!isNaN(an)&&!isNaN(bn)&&an!==bn)return an-bn;
+    if(av!==bv)return av<bv?-1:1;
+  }
+  return 0;
+}
+
+function handleFiles(files) {
+  let arr = Array.from(files);
+  if(arr.length>20){alert('最多 20 個檔案');arr=arr.slice(0,20);}
+  selectedFiles = arr.sort(naturalSort);
+  pendingOrders = [];
+  $('submitBtn').classList.add('hidden');
+  $('results').innerHTML = '';
+  renderFileList();
+  $('previewBtn').disabled = !selectedFiles.length;
+}
+
+function renderFileList() {
+  $('fileList').innerHTML = '';
+  selectedFiles.forEach(f => {
+    const isPDF = f.name.toLowerCase().endsWith('.pdf');
+    $('fileList').innerHTML += `<div class="file-item"><span><b>${isPDF?'📑':'🖼'} ${f.name}</b><span class="file-meta">${isPDF?'PDF':'IMG'} · ${(f.size/1024).toFixed(0)}KB</span></span><span style="color:#b8860b;font-size:.8rem">待處理</span></div>`;
+  });
+}
+
+function formatBytes(b){return b<1024?b+'B':b<1048576?(b/1024).toFixed(1)+'KB':(b/1048576).toFixed(1)+'MB'}
+
+// ===== 預覽 =====
+$('previewBtn').addEventListener('click', async () => {
+  if(!selectedFiles.length) return;
+  $('previewBtn').disabled=true;
+  $('previewBtn').innerHTML='<span class="loading"></span>OCR 辨識中...';
+  $('results').innerHTML='';
+  pendingOrders=[];
+
+  const fd = new FormData();
+  selectedFiles.forEach(f=>fd.append('files',f));
+
+  try {
+    const r = await fetch('/preview',{method:'POST',body:fd});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    displayResults(d.results, true);
+  } catch(e) { alert('處理失敗: '+e.message); }
+  finally { $('previewBtn').disabled=false; $('previewBtn').textContent='📋 預覽 OCR 結果'; }
+});
+
+// ===== 寫入 =====
+$('submitBtn').addEventListener('click', async () => {
+  if(!pendingOrders.length) return;
+  $('submitBtn').disabled=true;
+  $('submitBtn').innerHTML='<span class="loading"></span>寫入中...';
+  try {
+    const r = await fetch('/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orders:pendingOrders})});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    alert(`✅ 成功寫入 ${d.rows_written} 行到 Google Sheet！`);
+    $('submitBtn').classList.add('hidden');
+    pendingOrders=[];
+  } catch(e) { alert('寫入失敗: '+e.message); }
+  finally { $('submitBtn').disabled=false; $('submitBtn').textContent='✅ 確認寫入 Google Sheet'; }
+});
+
+// ===== 結果顯示 =====
+function displayResults(resultsData, showSubmit) {
+  const el = $('results');
+  el.innerHTML = '<h2 style="color:#667eea;margin-bottom:16px">📊 OCR 結果</h2>';
+
+  resultsData.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'result-item';
+
+    if(r.status!=='success'){
+      div.innerHTML = `<div class="result-header"><span class="result-filename">❌ ${r.filename}</span><span class="result-badge error">失敗</span></div><div style="color:#d63031;font-size:.88rem">${r.message}</div>`;
+    } else {
+      const orders = r.orders||[];
+      pendingOrders.push(...orders);
+
+      let ordersHTML = '';
+      orders.forEach((o,i)=>{
+        const fields = ['po_no','type','hospital','item','qty','price','total','brand','dept','user','ext','note'].filter(k=>o[k]&&o[k]!=='0'&&o[k]!==0);
+        ordersHTML += `<div class="order-card"><div style="font-weight:700;color:#764ba2;margin-bottom:4px">品項 ${i+1}: ${o.item||'—'}</div>${fields.map(k=>`<span class="order-label">${k}:</span> ${o[k]}<br>`).join('')}</div>`;
+      });
+
+      div.innerHTML = `<div class="result-header"><span class="result-filename">✅ ${r.filename}</span><span class="result-badge">${r.items_count} 品項</span></div>${ordersHTML}`;
+    }
+    el.appendChild(div);
+  });
+
+  if(showSubmit && pendingOrders.length) {
+    $('submitBtn').classList.remove('hidden');
+    $('submitBtn').textContent = `✅ 確認寫入 ${pendingOrders.length} 筆到 Google Sheet`;
+  }
+}
+
+// 啟動
+checkAuth();
+</script>
+</body>
+</html>
