@@ -24,7 +24,6 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 #fileInput{display:none}
 .file-list{margin-top:16px}
 .file-item{background:#f8f9fa;padding:12px 16px;border-radius:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
-.file-name{font-weight:500;color:#333}.file-meta{color:#999;font-size:.78rem;margin-left:6px}
 .btn{width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:1.05rem;font-weight:600;cursor:pointer;transition:all .3s;margin-top:16px}
 .btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(102,126,234,.4)}
 .btn:disabled{background:#ccc;cursor:not-allowed;transform:none;box-shadow:none}
@@ -36,9 +35,9 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .result-filename{font-weight:600;color:#333;font-size:.92rem}
 .result-badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:3px 12px;border-radius:16px;font-size:.78rem;font-weight:600}
 .result-badge.error{background:#ff7675}
-.order-card{background:#f8f9fa;padding:10px 14px;border-radius:8px;margin-bottom:6px;border-left:3px solid #764ba2;font-size:.85rem;line-height:1.7}
-.order-label{font-weight:600;color:#667eea;min-width:90px;display:inline-block;vertical-align:top;padding-top:5px}
-.editable-field{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 100px);display:inline-block;transition:border .2s}
+.order-card{background:#f8f9fa;padding:12px 14px;border-radius:8px;margin-bottom:8px;border-left:3px solid #764ba2;font-size:.85rem}
+.order-label{font-weight:600;color:#667eea;min-width:130px;display:inline-block;vertical-align:top;padding-top:5px;font-size:.84rem}
+.editable-field{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 140px);display:inline-block;transition:border .2s}
 .editable-field:focus{outline:none;border-color:#667eea;background:#f0f4ff}
 .editable-field:hover{border-color:#aaa}
 .field-row{margin-bottom:6px}
@@ -81,7 +80,7 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
     <input type="file" id="fileInput" multiple accept="image/*,.pdf">
 
     <div class="file-list" id="fileList"></div>
-    <button class="btn" id="previewBtn" disabled>📋 預覽 OCR 結果</button>
+    <button class="btn" id="previewBtn" disabled>📋 預覽辨識結果</button>
     <button class="btn btn-outline hidden" id="submitBtn">✅ 確認寫入 Google Sheet</button>
 
     <div class="results" id="results"></div>
@@ -91,6 +90,38 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 <script>
 const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
+
+// 欄位中文對照表
+const FIELD_LABELS = {
+  hospital:    '客戶名稱(醫院)',
+  date:        '訂購日期',
+  vendor:      '廠商名稱',
+  loc:         '交貨地點',
+  item:        '品名',
+  qty:         '訂購量/數量',
+  price:       '單價',
+  total:       '訂購總金額',
+  brand:       '廠牌型號',
+  deadline:    '交貨期限/預計到貨日',
+  dept:        '請購部門',
+  user:        '申購人',
+  ext:         '分機/聯絡分機',
+  note:        '備註',
+  po_no:       '訂單號碼/訂購單號',
+  item_id:     '訂單編號-項次',
+  idx:         '項次',
+  sign_no:     '簽辦案號',
+  type:        '訂單類型',
+  material_id: '資材代碼',
+  unit:        '單位',
+};
+
+// 預覽時顯示的欄位順序
+const DISPLAY_FIELDS = [
+  'po_no','type','hospital','date','vendor','loc',
+  'item','qty','unit','price','total','brand',
+  'deadline','dept','user','ext','sign_no','material_id','note'
+];
 
 async function checkAuth() {
   try {
@@ -141,7 +172,7 @@ function renderFileList() {
   $('fileList').innerHTML = '';
   selectedFiles.forEach(f => {
     const isPDF = f.name.toLowerCase().endsWith('.pdf');
-    $('fileList').innerHTML += `<div class="file-item"><span><b>${isPDF?'📑':'🖼'} ${f.name}</b><span class="file-meta">${isPDF?'PDF':'IMG'} · ${(f.size/1024).toFixed(0)}KB</span></span><span style="color:#b8860b;font-size:.8rem">待處理</span></div>`;
+    $('fileList').innerHTML += `<div class="file-item"><span><b>${isPDF?'📑':'🖼'} ${f.name}</b><span style="color:#999;font-size:.78rem;margin-left:6px">${isPDF?'PDF':'圖片'} · ${(f.size/1024).toFixed(0)}KB</span></span><span style="color:#b8860b;font-size:.8rem">待處理</span></div>`;
   });
 }
 
@@ -161,18 +192,18 @@ $('previewBtn').addEventListener('click', async () => {
     const d = await r.json();
     displayResults(d.results, true);
   } catch(e) { alert('處理失敗: '+e.message); }
-  finally { $('previewBtn').disabled=false; $('previewBtn').textContent='📋 預覽 OCR 結果'; }
+  finally { $('previewBtn').disabled=false; $('previewBtn').textContent='📋 預覽辨識結果'; }
 });
 
 $('submitBtn').addEventListener('click', async () => {
   if(!pendingOrders.length) return;
-  
+
   // 收集編輯後的值
   document.querySelectorAll('.editable-field').forEach(input => {
     const idx = parseInt(input.dataset.orderIdx);
     const field = input.dataset.field;
     const val = input.value.trim();
-    
+
     if (pendingOrders[idx]) {
       if (['qty', 'price', 'total'].includes(field)) {
         pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
@@ -181,7 +212,7 @@ $('submitBtn').addEventListener('click', async () => {
       }
     }
   });
-  
+
   $('submitBtn').disabled=true;
   $('submitBtn').innerHTML='<span class="loading"></span>寫入中...';
   try {
@@ -197,7 +228,7 @@ $('submitBtn').addEventListener('click', async () => {
 
 function displayResults(resultsData, showSubmit) {
   const el = $('results');
-  el.innerHTML = '<h2 style="color:#667eea;margin-bottom:16px">📊 OCR 結果（可直接點擊修改）</h2>';
+  el.innerHTML = '<h2 style="color:#667eea;margin-bottom:16px">📊 辨識結果（可直接點擊修改）</h2>';
 
   let globalIdx = 0;
   resultsData.forEach(r => {
@@ -212,20 +243,23 @@ function displayResults(resultsData, showSubmit) {
 
       let ordersHTML = '';
       orders.forEach((o,i)=>{
-        const fields = ['po_no','type','hospital','item','qty','price','total','brand','dept','user','ext','note'];
-        const visibleFields = fields.filter(k=>o[k]!==undefined && o[k]!=='0' && o[k]!==0 && o[k]!=='');
-        
+        const visibleFields = DISPLAY_FIELDS.filter(k => {
+          const v = o[k];
+          return v !== undefined && v !== '' && v !== 0 && v !== '0';
+        });
+
         ordersHTML += `<div class="order-card">
-          <div style="font-weight:700;color:#764ba2;margin-bottom:8px">品項 ${i+1}</div>`;
-        
-        visibleFields.forEach(k=>{
+          <div style="font-weight:700;color:#764ba2;margin-bottom:8px">品項 ${i+1}: ${o.item||'—'}</div>`;
+
+        visibleFields.forEach(k => {
           const val = o[k] || '';
+          const label = FIELD_LABELS[k] || k;
           ordersHTML += `<div class="field-row">
-            <span class="order-label">${k}:</span>
-            <input type="text" class="editable-field" value="${val}" data-order-idx="${globalIdx}" data-field="${k}">
+            <span class="order-label">${label}:</span>
+            <input type="text" class="editable-field" value="${String(val).replace(/"/g,'&quot;')}" data-order-idx="${globalIdx}" data-field="${k}">
           </div>`;
         });
-        
+
         ordersHTML += `</div>`;
         globalIdx++;
       });
