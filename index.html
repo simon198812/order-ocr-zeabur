@@ -36,8 +36,8 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .result-badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:3px 12px;border-radius:16px;font-size:.78rem;font-weight:600}
 .result-badge.error{background:#ff7675}
 .order-card{background:#f8f9fa;padding:12px 14px;border-radius:8px;margin-bottom:8px;border-left:3px solid #764ba2;font-size:.85rem}
-.order-label{font-weight:600;color:#667eea;min-width:130px;display:inline-block;vertical-align:top;padding-top:5px;font-size:.84rem}
-.editable-field{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 140px);display:inline-block;transition:border .2s}
+.order-label{font-weight:600;color:#667eea;min-width:150px;display:inline-block;vertical-align:top;padding-top:5px;font-size:.84rem}
+.editable-field{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 160px);display:inline-block;transition:border .2s}
 .editable-field:focus{outline:none;border-color:#667eea;background:#f0f4ff}
 .editable-field:hover{border-color:#aaa}
 .field-row{margin-bottom:6px}
@@ -91,36 +91,40 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
 
-// 欄位中文對照表
+// 欄位中文對照表 (23 欄)
 const FIELD_LABELS = {
-  hospital:    '客戶名稱(醫院)',
-  date:        '訂購日期',
-  vendor:      '廠商名稱',
-  loc:         '交貨地點',
-  item:        '品名',
-  qty:         '訂購量/數量',
-  price:       '單價',
-  total:       '訂購總金額',
-  brand:       '廠牌型號',
-  deadline:    '交貨期限/預計到貨日',
-  dept:        '請購部門',
-  user:        '申購人',
-  ext:         '分機/聯絡分機',
-  note:        '備註',
-  po_no:       '訂單號碼/訂購單號',
-  item_id:     '訂單編號-項次',
-  idx:         '項次',
-  sign_no:     '簽辦案號',
-  type:        '訂單類型',
-  material_id: '資材代碼',
-  unit:        '單位',
+  hospital:     '客戶名稱(醫院)',
+  date:         '訂購日期',
+  deadline:     '交貨期限/預計到貨日',
+  vendor:       '廠商名稱',
+  loc:          '交貨地點',
+  type:         '訂單類型',
+  material_id:  '資材代碼',
+  item:         '品名',
+  brand:        '廠牌型號',
+  qty:          '訂購量/數量',
+  unit:         '單位',
+  price:        '單價',
+  total:        '訂購總金額',
+  dept:         '請購部門',
+  user:         '申購人',
+  ext:          '分機/聯絡分機',
+  po_no:        '訂單號碼/訂購單號',
+  item_id:      '訂單編號-項次',
+  idx:          '項次',
+  sign_no:      '簽辦案號',
+  order_total:  '總金額',
+  note:         '備註',
+  warranty:     '保固月數',
 };
 
-// 預覽時顯示的欄位順序
+// 預覽時顯示的欄位順序 (與 Sheet 一致)
 const DISPLAY_FIELDS = [
-  'po_no','type','hospital','date','vendor','loc',
-  'item','qty','unit','price','total','brand',
-  'deadline','dept','user','ext','sign_no','material_id','note'
+  'hospital','date','deadline','vendor','loc','type','material_id',
+  'item','brand','qty','unit','price','total',
+  'dept','user','ext',
+  'po_no','item_id','sign_no','order_total',
+  'note','warranty'
 ];
 
 async function checkAuth() {
@@ -205,7 +209,7 @@ $('submitBtn').addEventListener('click', async () => {
     const val = input.value.trim();
 
     if (pendingOrders[idx]) {
-      if (['qty', 'price', 'total'].includes(field)) {
+      if (['qty', 'price', 'total', 'order_total', 'warranty'].includes(field)) {
         pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
       } else {
         pendingOrders[idx][field] = val;
