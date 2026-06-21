@@ -102,10 +102,12 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 <script>
 const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
-const REQUIRED_FOR_RAGIC = ['po_no', 'date'];  // 訂單編號、訂單日期 — Ragic 必填
+// Ragic 寫入必填：ragic_po (使用者手填) + date (OCR 抓但可改)
+const REQUIRED_FOR_RAGIC = ['ragic_po', 'date'];
 
-// 欄位中文對照表 (23 欄)
+// 欄位中文對照表
 const FIELD_LABELS = {
+  ragic_po:     '🟧 Ragic 訂單編號 (手動填)',
   hospital:     '客戶名稱(醫院)',
   date:         '訂購日期',
   deadline:     '交貨期限/預計到貨日',
@@ -131,8 +133,9 @@ const FIELD_LABELS = {
   warranty:     '保固月數',
 };
 
-// 預覽時顯示的欄位順序 (與 Sheet 一致)
+// 預覽時顯示的欄位順序 (Ragic 訂單編號放最前面方便先填)
 const DISPLAY_FIELDS = [
+  'ragic_po',
   'hospital','date','deadline','vendor','loc','type','material_id',
   'item','brand','qty','unit','price','total',
   'dept','user','ext',
@@ -244,6 +247,7 @@ function validateRequired() {
 function renderRagicSummary() {
   const box = $('ragicSummary');
   if (!pendingOrders.length) { box.innerHTML = ''; return; }
+  // 用 po_no 分組 (OCR 穩定識別)，主表訂單編號 (1000320) 從每組第一個有值的 ragic_po 取
   const groups = {};
   pendingOrders.forEach(o => {
     const po = (o.po_no || '').trim();
@@ -254,23 +258,27 @@ function renderRagicSummary() {
   const noPo = pendingOrders.filter(o => !(o.po_no || '').trim()).length;
   if (!poList.length && !noPo) { box.innerHTML = ''; return; }
 
-  let html = `<div class="ragic-summary"><h3>📋 將寫入 Ragic 的訂單 (按訂單號分組)</h3>`;
+  let html = `<div class="ragic-summary"><h3>📋 將寫入 Ragic 的訂單 (按 po_no 分組，主表編號用「Ragic 訂單編號」)</h3>`;
   poList.forEach(po => {
     const items = groups[po];
     const h = items[0];
+    const ragicPo = (items.find(it => (it.ragic_po || '').trim())?.ragic_po || '').trim();
+    const ragicPoDisplay = ragicPo
+      ? `<span class="po">${ragicPo}</span> <span class="meta">(po_no: ${po})</span>`
+      : `<span style="color:#d63031">⚠ 未填 Ragic 訂單編號</span> <span class="meta">(po_no: ${po})</span>`;
     const dateBad = !h.date ? ' <span style="color:#d63031">(缺日期)</span>' : '';
     html += `<div class="ragic-row">
       <div>
-        <div class="po">${po}${dateBad}</div>
+        <div>${ragicPoDisplay}${dateBad}</div>
         <div class="meta">${h.date || '？'} ｜ ${h.vendor || '—'} ｜ 客戶/交貨：${h.loc || '—'}</div>
       </div>
       <span class="count">${items.length} 個品項</span>
     </div>`;
   });
   if (noPo) {
-    html += `<div class="ragic-row warn"><div>⚠️ 有 ${noPo} 筆品項缺訂單號</div><span class="meta">將跳過 Ragic，仍寫入 Sheet</span></div>`;
+    html += `<div class="ragic-row warn"><div>⚠️ 有 ${noPo} 筆品項 OCR 沒抓到 po_no</div><span class="meta">將跳過 Ragic，仍寫入 Sheet</span></div>`;
   }
-  html += `<div class="ragic-warn-text">寫入規則：同訂單號合併為一筆 Ragic 訂單 (主表 + 多筆子品項)；已存在的訂單號會自動跳過。</div></div>`;
+  html += `<div class="ragic-warn-text">寫入規則：同 po_no 合併為一筆 Ragic 訂單；主表「訂單編號 (1000320)」用你填的「Ragic 訂單編號」；「訂單號碼(客戶) (1000398)」用醫院的 po_no。已存在的訂單編號會自動跳過。</div></div>`;
   box.innerHTML = html;
 }
 
@@ -301,7 +309,7 @@ $('submitBtn').addEventListener('click', async () => {
 
   const missing = validateRequired();
   if (missing.length) {
-    alert(`還有 ${missing.length} 個必填欄位 (訂單編號 / 訂購日期) 沒填，已用紅框標出，請補齊後再送出。\n\n備註：Ragic 訂單編號與訂單日期是必填欄位。`);
+    alert(`還有 ${missing.length} 個必填欄位 (Ragic 訂單編號 / 訂購日期) 沒填，已用紅框標出，請補齊後再送出。\n\n備註：Ragic 主表「訂單編號 (1000320)」用你手動填入的「Ragic 訂單編號」，與醫院 po_no 分開。`);
     const first = missing[0].input;
     first.scrollIntoView({behavior:'smooth', block:'center'});
     first.focus();
@@ -335,6 +343,8 @@ function displayResults(resultsData, showSubmit) {
       div.innerHTML = `<div class="result-header"><span class="result-filename">❌ ${r.filename}</span><span class="result-badge error">失敗</span></div><div style="color:#d63031;font-size:.88rem">${r.message}</div>`;
     } else {
       const orders = r.orders||[];
+      // 為每筆 order 初始化 ragic_po (使用者手填)，預設空字串
+      orders.forEach(o => { if (o.ragic_po === undefined) o.ragic_po = ''; });
       pendingOrders.push(...orders);
 
       let ordersHTML = '';
@@ -370,10 +380,29 @@ function displayResults(resultsData, showSubmit) {
   }
 
   // 編輯到會影響 Ragic 摘要的欄位時自動重算
-  const watchFields = new Set(['po_no','date','vendor','loc']);
+  const watchFields = new Set(['po_no','date','vendor','loc','ragic_po']);
   document.querySelectorAll('.editable-field').forEach(input => {
     input.addEventListener('input', () => {
-      if (!watchFields.has(input.dataset.field)) return;
+      const field = input.dataset.field;
+      // ragic_po: 同 po_no 群組內自動同步 (一張訂單只用填一次)
+      if (field === 'ragic_po') {
+        const idx = parseInt(input.dataset.orderIdx);
+        const myPo = (pendingOrders[idx]?.po_no || '').trim();
+        if (myPo) {
+          const newVal = input.value;
+          document.querySelectorAll('.editable-field[data-field="ragic_po"]').forEach(other => {
+            if (other === input) return;
+            const otherIdx = parseInt(other.dataset.orderIdx);
+            const otherPo = (pendingOrders[otherIdx]?.po_no || '').trim();
+            if (otherPo === myPo && other.value !== newVal) {
+              other.value = newVal;
+              if (newVal.trim()) other.classList.remove('is-empty', 'is-invalid');
+              else other.classList.add('is-empty');
+            }
+          });
+        }
+      }
+      if (!watchFields.has(field)) return;
       collectEdits();
       renderRagicSummary();
     });

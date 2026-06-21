@@ -357,21 +357,27 @@ def _ragic_check_duplicate(po_no: str) -> Optional[str]:
     return None
 
 def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
-    """構造 Ragic POST form 參數 (主表 + 子表 1000341)。"""
+    """構造 Ragic POST form 參數 (主表 + 子表 1000341)。
+
+    - 1000320 訂單編號：來自使用者手填的 ragic_po (取群組內第一個非空)
+    - 1000398 訂單號碼(客戶)：仍用 OCR 抓的 po_no (醫院 M+9碼)
+    """
     head = items[0]
 
     def _s(k):
         return str(head.get(k, "") or "").strip()
+
+    ragic_po = _pick_ragic_po(items, fallback=po_no)
 
     apply_unit_parts = [v for v in (_s("dept"), _s("user"), _s("ext")) if v]
     apply_unit = " / ".join(apply_unit_parts)
 
     payload = {
         "1002403": _map_vendor_to_company(head.get("vendor", "")),  # 公司 (單選)
-        "1000320": po_no,                                           # 訂單編號 (必填)
+        "1000320": ragic_po,                                        # 訂單編號 (使用者手填)
         "1000322": _minguo_to_western(head.get("date", "")),        # 訂單日期 (必填)
         "1000319": _s("loc"),                                       # 客戶編號 (連結欄位)
-        "1000398": po_no,                                           # 訂單號碼(客戶)
+        "1000398": po_no,                                           # 訂單號碼(客戶) — 醫院 po_no
         "1000399": apply_unit,                                      # 申請單位
         "1000339": _s("note"),                                      # 主表備註
     }
@@ -419,6 +425,14 @@ def _ragic_create_order(po_no: str, items: list[dict]) -> dict:
         return {"po_no": po_no, "status": "error", "items": len(items),
                 "message": f"{type(e).__name__}: {e}"}
 
+def _pick_ragic_po(items: list[dict], fallback: str) -> str:
+    """從群組內挑第一個有值的 ragic_po；都空就 fallback。"""
+    for it in items:
+        v = str(it.get("ragic_po", "") or "").strip()
+        if v:
+            return v
+    return fallback
+
 def write_orders_to_ragic(orders: list[dict]) -> dict:
     """主入口：分組 → 重複偵測 → 寫入。永遠回傳結果結構，不丟例外。"""
     summary = {"success": 0, "skipped": 0, "error": 0, "no_po": 0}
@@ -433,13 +447,17 @@ def write_orders_to_ragic(orders: list[dict]) -> dict:
     groups = _group_orders_by_po(orders)
 
     for po_no, items in groups.items():
-        existing = _ragic_check_duplicate(po_no)
+        # Ragic 主表 1000320 用 ragic_po；重複偵測也用它
+        ragic_po = _pick_ragic_po(items, fallback=po_no)
+        existing = _ragic_check_duplicate(ragic_po)
         if existing:
             summary["skipped"] += 1
-            results.append({"po_no": po_no, "status": "skipped", "items": len(items),
-                            "ragic_id": existing, "message": "Ragic 已存在同訂單編號"})
+            results.append({"po_no": po_no, "ragic_po": ragic_po, "status": "skipped",
+                            "items": len(items), "ragic_id": existing,
+                            "message": "Ragic 已存在同訂單編號"})
             continue
         res = _ragic_create_order(po_no, items)
+        res["ragic_po"] = ragic_po
         results.append(res)
         if res.get("status") == "success":
             summary["success"] += 1
