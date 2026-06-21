@@ -24,6 +24,7 @@ import tempfile
 from functools import lru_cache
 from typing import Optional
 
+import requests
 from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Depends, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
@@ -43,6 +44,12 @@ GOOGLE_SHEET_ID         = os.getenv("GOOGLE_SHEET_ID", "").strip()
 GOOGLE_SHEET_TAB        = os.getenv("GOOGLE_SHEET_TAB", "工作表1").strip()
 GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON", "").strip()
 APP_PASSWORD            = os.getenv("APP_PASSWORD", "").strip()
+
+# Ragic (SFinc 帳號 / 訂單總單 KEY訂單 表單 ID = 4)
+RAGIC_BASE_URL  = os.getenv("RAGIC_BASE_URL", "https://ap2.ragic.com/SFinc").strip().rstrip("/")
+RAGIC_FORM_PATH = os.getenv("RAGIC_FORM_PATH", "/forms2/4").strip()
+RAGIC_API_KEY   = os.getenv("RAGIC_API_KEY", "").strip()
+RAGIC_ENABLED   = os.getenv("RAGIC_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
 
 # Session (重啟失效,簡單安全)
 SESSION_SECRET = secrets.token_urlsafe(32)
@@ -282,6 +289,165 @@ def batch_write_to_sheet(orders: list[dict]) -> int:
     sheet.append_rows(rows, value_input_option="USER_ENTERED")
     return len(rows)
 
+# ------------------- Ragic 整合 -------------------
+# vendor 名稱關鍵字 → 公司單選值 (Ragic 1002403)
+_VENDOR_TO_COMPANY = [
+    ("尚鋒", "2 尚鋒"),
+    ("長洲", "1 長洲"),
+    ("靖展", "3 靖展"),
+]
+
+def _map_vendor_to_company(vendor: str) -> str:
+    if not vendor:
+        return ""
+    s = str(vendor)
+    for kw, val in _VENDOR_TO_COMPANY:
+        if kw in s:
+            return val
+    return ""
+
+def _minguo_to_western(date_str) -> str:
+    """民國年 → 西元年。1150127 → 2026/01/27。無法解析回傳空字串。"""
+    s = re.sub(r"\D", "", str(date_str or ""))
+    if not s:
+        return ""
+    if len(s) == 7:  # yyyMMdd 民國 (例如 1150127)
+        yyy, mm, dd = s[0:3], s[3:5], s[5:7]
+        try:
+            return f"{int(yyy) + 1911}/{mm}/{dd}"
+        except Exception:
+            return ""
+    if len(s) == 6:  # yyMMdd 民國 (例如 991027)
+        yyy, mm, dd = s[0:2], s[2:4], s[4:6]
+        try:
+            return f"{int(yyy) + 1911}/{mm}/{dd}"
+        except Exception:
+            return ""
+    if len(s) == 8:  # 已是西元 yyyyMMdd
+        return f"{s[0:4]}/{s[4:6]}/{s[6:8]}"
+    return ""
+
+def _group_orders_by_po(orders: list[dict]) -> dict:
+    """以 po_no 分組；空 po_no 不參與分組。保留原始順序。"""
+    groups = {}
+    for o in orders:
+        po = str(o.get("po_no") or "").strip()
+        if not po:
+            continue
+        groups.setdefault(po, []).append(o)
+    return groups
+
+def _ragic_url() -> str:
+    return f"{RAGIC_BASE_URL}{RAGIC_FORM_PATH}"
+
+def _ragic_auth():
+    return (RAGIC_API_KEY, "")
+
+def _ragic_check_duplicate(po_no: str) -> Optional[str]:
+    """查 Ragic 是否已有同 po_no 訂單，存在回 record_id；查詢失敗也回 None (不擋寫入)。"""
+    url = f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&where=1000320,eq,{po_no}"
+    try:
+        r = requests.get(url, auth=_ragic_auth(), timeout=15)
+        r.raise_for_status()
+        data = r.json()
+        if isinstance(data, dict) and data:
+            return next(iter(data.keys()))
+    except Exception:
+        return None
+    return None
+
+def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
+    """構造 Ragic POST form 參數 (主表 + 子表 1000341)。"""
+    head = items[0]
+
+    def _s(k):
+        return str(head.get(k, "") or "").strip()
+
+    apply_unit_parts = [v for v in (_s("dept"), _s("user"), _s("ext")) if v]
+    apply_unit = " / ".join(apply_unit_parts)
+
+    payload = {
+        "1002403": _map_vendor_to_company(head.get("vendor", "")),  # 公司 (單選)
+        "1000320": po_no,                                           # 訂單編號 (必填)
+        "1000322": _minguo_to_western(head.get("date", "")),        # 訂單日期 (必填)
+        "1000319": _s("loc"),                                       # 客戶編號 (連結欄位)
+        "1000398": po_no,                                           # 訂單號碼(客戶)
+        "1000399": apply_unit,                                      # 申請單位
+        "1000339": _s("note"),                                      # 主表備註
+    }
+
+    # 子表 1000341：每個品項一行；row id 用負數
+    for i, it in enumerate(items, start=1):
+        rid = -i
+        idx_val = str(it.get("idx", "") or i)
+        qty = it.get("qty", "")
+        price = it.get("price", "")
+        payload[f"1000331_{rid}"] = idx_val                                  # 項次
+        payload[f"1000332_{rid}"] = str(it.get("item", "") or "")            # 品名規格 (連結)
+        payload[f"1000334_{rid}"] = "" if qty in (None, "", 0) else str(qty)
+        payload[f"1000333_{rid}"] = "" if price in (None, "", 0) else str(price)
+        payload[f"1006516_{rid}"] = str(it.get("note", "") or "")            # 子表備註
+
+    # 過濾空值；保留必填欄位即使空也要送 (送空才好定位錯誤)
+    keep = {"1000320", "1000322"}
+    return {k: v for k, v in payload.items() if v != "" or k in keep}
+
+def _ragic_create_order(po_no: str, items: list[dict]) -> dict:
+    payload = _build_ragic_payload(po_no, items)
+    headers = {"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"}
+    url = f"{_ragic_url()}?api"
+    try:
+        # 編碼成 UTF-8 byte string，避免 requests 預設用 latin-1 處理中文
+        encoded = "&".join(
+            f"{k}={requests.utils.quote(str(v), safe='')}" for k, v in payload.items()
+        ).encode("utf-8")
+        r = requests.post(url, data=encoded, headers=headers, auth=_ragic_auth(), timeout=30)
+        if r.status_code != 200:
+            return {"po_no": po_no, "status": "error", "items": len(items),
+                    "message": f"HTTP {r.status_code}: {r.text[:300]}"}
+        try:
+            body = r.json()
+        except Exception:
+            return {"po_no": po_no, "status": "error", "items": len(items),
+                    "message": f"非 JSON 回應 (檢查 ?api 與 API Key): {r.text[:300]}"}
+        if body.get("status") == "SUCCESS":
+            return {"po_no": po_no, "status": "success",
+                    "ragic_id": body.get("ragicId"), "items": len(items)}
+        return {"po_no": po_no, "status": "error", "items": len(items),
+                "message": str(body)[:300]}
+    except Exception as e:
+        return {"po_no": po_no, "status": "error", "items": len(items),
+                "message": f"{type(e).__name__}: {e}"}
+
+def write_orders_to_ragic(orders: list[dict]) -> dict:
+    """主入口：分組 → 重複偵測 → 寫入。永遠回傳結果結構，不丟例外。"""
+    summary = {"success": 0, "skipped": 0, "error": 0, "no_po": 0}
+    results: list[dict] = []
+    if not RAGIC_ENABLED:
+        return {"enabled": False, "configured": False, "results": results, "summary": summary}
+    if not RAGIC_API_KEY:
+        return {"enabled": True, "configured": False, "results": results, "summary": summary,
+                "message": "RAGIC_API_KEY 未設定"}
+
+    summary["no_po"] = sum(1 for o in orders if not str(o.get("po_no") or "").strip())
+    groups = _group_orders_by_po(orders)
+
+    for po_no, items in groups.items():
+        existing = _ragic_check_duplicate(po_no)
+        if existing:
+            summary["skipped"] += 1
+            results.append({"po_no": po_no, "status": "skipped", "items": len(items),
+                            "ragic_id": existing, "message": "Ragic 已存在同訂單編號"})
+            continue
+        res = _ragic_create_order(po_no, items)
+        results.append(res)
+        if res.get("status") == "success":
+            summary["success"] += 1
+        else:
+            summary["error"] += 1
+
+    return {"enabled": True, "configured": True, "results": results, "summary": summary}
+
 # ------------------- 密碼驗證 -------------------
 def require_auth(session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
     if not APP_PASSWORD:
@@ -305,9 +471,48 @@ def health():
         "status": "ok",
         "gemini_configured": bool(GEMINI_API_KEY),
         "sheet_configured": bool(GOOGLE_CREDENTIALS_JSON),
+        "ragic_enabled": RAGIC_ENABLED,
+        "ragic_configured": bool(RAGIC_API_KEY),
+        "ragic_url": _ragic_url() if RAGIC_API_KEY else "未設定 API Key",
         "password_protected": bool(APP_PASSWORD),
         "model": GEMINI_MODEL,
     }
+
+@app.get("/ragic/diag", dependencies=[Depends(require_auth)])
+def ragic_diag():
+    """診斷 Ragic 連線：GET 訂單總單前 1 筆，回傳連線狀態。"""
+    out = {
+        "enabled": RAGIC_ENABLED,
+        "configured": bool(RAGIC_API_KEY),
+        "url": _ragic_url(),
+    }
+    if not RAGIC_ENABLED:
+        out["result"] = "RAGIC_ENABLED=false，跳過"
+        return out
+    if not RAGIC_API_KEY:
+        out["result"] = "未設定 RAGIC_API_KEY"
+        return out
+    try:
+        r = requests.get(
+            f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&limit=0,1",
+            auth=_ragic_auth(), timeout=15,
+        )
+        out["http_status"] = r.status_code
+        if r.status_code != 200:
+            out["result"] = "失敗"
+            out["body_preview"] = r.text[:500]
+            return out
+        try:
+            data = r.json()
+            out["result"] = "成功"
+            out["record_count_returned"] = len(data) if isinstance(data, dict) else 0
+            out["sample_record_id"] = next(iter(data.keys()), None) if isinstance(data, dict) and data else None
+        except Exception:
+            out["result"] = "回應非 JSON (可能 API Key 錯誤或網址錯誤)"
+            out["body_preview"] = r.text[:500]
+    except Exception as e:
+        out["result"] = f"連線錯誤: {type(e).__name__}: {e}"
+    return out
 
 @app.post("/login")
 async def login(request: Request, response: Response):
@@ -360,7 +565,7 @@ async def preview(files: list[UploadFile] = File(...)):
 
 @app.post("/submit", dependencies=[Depends(require_auth)])
 async def submit(request: Request):
-    """把預覽確認的資料寫入 Sheet"""
+    """把預覽確認的資料寫入 Sheet → 再寫入 Ragic (Ragic 失敗不擋)"""
     try:
         body = await request.json()
         orders = body.get("orders", [])
@@ -370,9 +575,10 @@ async def submit(request: Request):
         raise HTTPException(status_code=400, detail="沒有資料可寫入")
     try:
         n = batch_write_to_sheet(orders)
-        return {"ok": True, "rows_written": n}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"寫入 Sheet 失敗: {e}")
+    ragic = write_orders_to_ragic(orders)
+    return {"ok": True, "rows_written": n, "ragic": ragic}
 
 @app.post("/upload", dependencies=[Depends(require_auth)])
 async def upload_and_submit(files: list[UploadFile] = File(...)):
@@ -400,6 +606,7 @@ async def upload_and_submit(files: list[UploadFile] = File(...)):
                 "message": str(e),
             })
     rows_written = 0
+    ragic = None
     if all_orders:
         try:
             rows_written = batch_write_to_sheet(all_orders)
@@ -408,7 +615,8 @@ async def upload_and_submit(files: list[UploadFile] = File(...)):
                 status_code=500,
                 content={"results": results, "error": f"寫入 Sheet 失敗: {e}"},
             )
-    return {"results": results, "rows_written": rows_written}
+        ragic = write_orders_to_ragic(all_orders)
+    return {"results": results, "rows_written": rows_written, "ragic": ragic}
 
 # ------------------- 靜態檔案 -------------------
 @app.get("/")

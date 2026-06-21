@@ -42,7 +42,16 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .editable-field:hover{border-color:#aaa}
 .editable-field.is-empty{background:#fff5e6;border-color:#ffa940}
 .editable-field.is-empty:focus{background:#fff;border-color:#667eea}
+.editable-field.is-invalid{background:#ffe5e5;border-color:#d63031}
 .field-row{margin-bottom:6px}
+.ragic-summary{background:#fff7e6;border-left:4px solid #fa8c16;padding:14px 16px;border-radius:10px;margin-top:18px}
+.ragic-summary h3{color:#d46b08;font-size:.95rem;margin-bottom:10px}
+.ragic-row{background:#fff;padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.ragic-row.warn{background:#fff1f0;border-left:3px solid #d63031}
+.ragic-row .po{font-weight:700;color:#262626}
+.ragic-row .meta{color:#666;font-size:.8rem}
+.ragic-row .count{background:#f0f4ff;color:#667eea;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:600}
+.ragic-warn-text{color:#d63031;font-size:.82rem;margin-top:8px}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none !important}
@@ -83,15 +92,17 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 
     <div class="file-list" id="fileList"></div>
     <button class="btn" id="previewBtn" disabled>📋 預覽辨識結果</button>
-    <button class="btn btn-outline hidden" id="submitBtn">✅ 確認寫入 Google Sheet</button>
+    <button class="btn btn-outline hidden" id="submitBtn">✅ 確認寫入 Google Sheet + Ragic</button>
 
     <div class="results" id="results"></div>
+    <div id="ragicSummary"></div>
   </div>
 </div>
 
 <script>
 const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
+const REQUIRED_FOR_RAGIC = ['po_no', 'date'];  // 訂單編號、訂單日期 — Ragic 必填
 
 // 欄位中文對照表 (23 欄)
 const FIELD_LABELS = {
@@ -201,15 +212,11 @@ $('previewBtn').addEventListener('click', async () => {
   finally { $('previewBtn').disabled=false; $('previewBtn').textContent='📋 預覽辨識結果'; }
 });
 
-$('submitBtn').addEventListener('click', async () => {
-  if(!pendingOrders.length) return;
-
-  // 收集編輯後的值
+function collectEdits() {
   document.querySelectorAll('.editable-field').forEach(input => {
     const idx = parseInt(input.dataset.orderIdx);
     const field = input.dataset.field;
     const val = input.value.trim();
-
     if (pendingOrders[idx]) {
       if (['qty', 'price', 'total', 'order_total', 'warranty'].includes(field)) {
         pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
@@ -218,6 +225,88 @@ $('submitBtn').addEventListener('click', async () => {
       }
     }
   });
+}
+
+function validateRequired() {
+  // 清掉舊的紅框
+  document.querySelectorAll('.editable-field.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+  const missing = [];
+  document.querySelectorAll('.editable-field').forEach(input => {
+    const field = input.dataset.field;
+    if (REQUIRED_FOR_RAGIC.includes(field) && !input.value.trim()) {
+      input.classList.add('is-invalid');
+      missing.push({field, input});
+    }
+  });
+  return missing;
+}
+
+function renderRagicSummary() {
+  const box = $('ragicSummary');
+  if (!pendingOrders.length) { box.innerHTML = ''; return; }
+  const groups = {};
+  pendingOrders.forEach(o => {
+    const po = (o.po_no || '').trim();
+    if (!po) return;
+    (groups[po] = groups[po] || []).push(o);
+  });
+  const poList = Object.keys(groups);
+  const noPo = pendingOrders.filter(o => !(o.po_no || '').trim()).length;
+  if (!poList.length && !noPo) { box.innerHTML = ''; return; }
+
+  let html = `<div class="ragic-summary"><h3>📋 將寫入 Ragic 的訂單 (按訂單號分組)</h3>`;
+  poList.forEach(po => {
+    const items = groups[po];
+    const h = items[0];
+    const dateBad = !h.date ? ' <span style="color:#d63031">(缺日期)</span>' : '';
+    html += `<div class="ragic-row">
+      <div>
+        <div class="po">${po}${dateBad}</div>
+        <div class="meta">${h.date || '？'} ｜ ${h.vendor || '—'} ｜ 客戶/交貨：${h.loc || '—'}</div>
+      </div>
+      <span class="count">${items.length} 個品項</span>
+    </div>`;
+  });
+  if (noPo) {
+    html += `<div class="ragic-row warn"><div>⚠️ 有 ${noPo} 筆品項缺訂單號</div><span class="meta">將跳過 Ragic，仍寫入 Sheet</span></div>`;
+  }
+  html += `<div class="ragic-warn-text">寫入規則：同訂單號合併為一筆 Ragic 訂單 (主表 + 多筆子品項)；已存在的訂單號會自動跳過。</div></div>`;
+  box.innerHTML = html;
+}
+
+function formatRagicResultMsg(d) {
+  let msg = `✅ Google Sheet: 已寫入 ${d.rows_written} 行\n\n`;
+  if (!d.ragic) { msg += '📋 Ragic: 未啟用'; return msg; }
+  if (!d.ragic.enabled) { msg += '📋 Ragic: 已停用 (RAGIC_ENABLED=false)'; return msg; }
+  if (!d.ragic.configured) { msg += '📋 Ragic: 未設定 API Key，已跳過'; return msg; }
+  const s = d.ragic.summary;
+  msg += `📋 Ragic 結果：新增 ${s.success} 筆、跳過 ${s.skipped} 筆、失敗 ${s.error} 筆`;
+  if (s.no_po) msg += `\n   (有 ${s.no_po} 筆品項缺訂單號，未送 Ragic)`;
+  if (d.ragic.results && d.ragic.results.length) {
+    const lines = d.ragic.results.map(r => {
+      const tag = r.status === 'success' ? '✓' : (r.status === 'skipped' ? '○' : '✗');
+      const extra = r.message ? ` — ${r.message}` : '';
+      return `   ${tag} ${r.po_no} (${r.items} 品項)${extra}`;
+    });
+    msg += '\n' + lines.join('\n');
+  }
+  return msg;
+}
+
+$('submitBtn').addEventListener('click', async () => {
+  if(!pendingOrders.length) return;
+
+  collectEdits();
+  renderRagicSummary();
+
+  const missing = validateRequired();
+  if (missing.length) {
+    alert(`還有 ${missing.length} 個必填欄位 (訂單編號 / 訂購日期) 沒填，已用紅框標出，請補齊後再送出。\n\n備註：Ragic 訂單編號與訂單日期是必填欄位。`);
+    const first = missing[0].input;
+    first.scrollIntoView({behavior:'smooth', block:'center'});
+    first.focus();
+    return;
+  }
 
   $('submitBtn').disabled=true;
   $('submitBtn').innerHTML='<span class="loading"></span>寫入中...';
@@ -225,11 +314,12 @@ $('submitBtn').addEventListener('click', async () => {
     const r = await fetch('/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orders:pendingOrders})});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
-    alert(`✅ 成功寫入 ${d.rows_written} 行到 Google Sheet！`);
+    alert(formatRagicResultMsg(d));
     $('submitBtn').classList.add('hidden');
+    $('ragicSummary').innerHTML = '';
     pendingOrders=[];
   } catch(e) { alert('寫入失敗: '+e.message); }
-  finally { $('submitBtn').disabled=false; $('submitBtn').textContent='✅ 確認寫入 Google Sheet'; }
+  finally { $('submitBtn').disabled=false; $('submitBtn').textContent='✅ 確認寫入 Google Sheet + Ragic'; }
 });
 
 function displayResults(resultsData, showSubmit) {
@@ -276,8 +366,26 @@ function displayResults(resultsData, showSubmit) {
 
   if(showSubmit && pendingOrders.length) {
     $('submitBtn').classList.remove('hidden');
-    $('submitBtn').textContent = `✅ 確認寫入 ${pendingOrders.length} 筆到 Google Sheet`;
+    $('submitBtn').textContent = `✅ 確認寫入 ${pendingOrders.length} 筆 (Google Sheet + Ragic)`;
   }
+
+  // 編輯到會影響 Ragic 摘要的欄位時自動重算
+  const watchFields = new Set(['po_no','date','vendor','loc']);
+  document.querySelectorAll('.editable-field').forEach(input => {
+    input.addEventListener('input', () => {
+      if (!watchFields.has(input.dataset.field)) return;
+      collectEdits();
+      renderRagicSummary();
+    });
+    input.addEventListener('blur', () => {
+      if (REQUIRED_FOR_RAGIC.includes(input.dataset.field) && input.value.trim()) {
+        input.classList.remove('is-invalid');
+      }
+    });
+  });
+
+  collectEdits();
+  renderRagicSummary();
 }
 
 checkAuth();
