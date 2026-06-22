@@ -430,6 +430,15 @@ def _pick_customer(items: list[dict]) -> tuple[str, str]:
             return code, cat
     return "", ""
 
+def _find_customer_by_code(code: str) -> dict:
+    """從 customerList 找對應客戶；找不到回空 dict。"""
+    if not code:
+        return {}
+    for c in _ragic_load_customers():
+        if c.get("code") == code:
+            return c
+    return {}
+
 def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
     """構造 Ragic POST form 參數 (主表 + 子表 1000341)。
 
@@ -450,6 +459,11 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
     if not cust_code:
         cust_code = _s("loc") or _s("hospital")
 
+    # 從客戶清單抓對應資料，明確寫入訂單載入欄位 (Ragic API 寫入不會自動載入)
+    cust = _find_customer_by_code(cust_code)
+    if cust and not cust_category:
+        cust_category = cust.get("category", "")
+
     # 營業稅: 醫院 0%，其他 5%
     tax_rate = "0" if cust_category == "醫院" else "0.05"
 
@@ -466,6 +480,26 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         "1000399": apply_unit,                                      # 申請單位
         "1000339": _s("note"),                                      # 主表備註
     }
+
+    # 明確寫入客戶相關載入欄位 (Ragic API 寫入不會自動觸發載入)
+    # 文件保證「手動設定載入欄位的值，該值會被保留」
+    if cust:
+        if cust.get("category"):
+            payload["1000530"] = cust["category"]      # 客戶類別
+        if cust.get("name"):
+            payload["1000321"] = cust["name"]          # 客戶名稱
+        if cust.get("short_name"):
+            payload["1000414"] = cust["short_name"]    # 客戶簡稱
+        if cust.get("tax_id"):
+            payload["1000415"] = cust["tax_id"]        # 客戶統編
+        if cust.get("phone"):
+            payload["1000325"] = cust["phone"]         # 電話
+        if cust.get("address"):
+            payload["1000329"] = cust["address"]       # 地址
+        if cust.get("ship_address"):
+            payload["1000330"] = cust["ship_address"]  # 送貨地址
+        if cust.get("sales"):
+            payload["1006517"] = cust["sales"]         # 負責業務
 
     # 子表 1000341：每個品項一行；row id 用負數
     for i, it in enumerate(items, start=1):
@@ -537,7 +571,8 @@ def _ragic_trigger_link_reload(ragic_id, payload: dict):
 @lru_cache(maxsize=1)
 def _ragic_load_customers() -> list:
     """從 (尚鋒) 客戶資料 表單抓全部客戶；快取於記憶體 (lru_cache)。
-    回傳 [{ragic_id, code, name, short_name, category}]。"""
+    回傳 [{ragic_id, code, name, short_name, tax_id, phone, address, ship_address,
+           sales, category}]。"""
     if not RAGIC_API_KEY:
         return []
     url = (
@@ -564,6 +599,11 @@ def _ragic_load_customers() -> list:
             "code": code,
             "name": str(rec.get("1000002", "") or "").strip(),       # 客戶名稱
             "short_name": str(rec.get("1000003", "") or "").strip(), # 客戶簡稱
+            "tax_id": str(rec.get("1000008", "") or "").strip(),     # 統一編號
+            "phone": str(rec.get("1000010", "") or "").strip(),      # 電話號碼
+            "address": str(rec.get("1000017", "") or "").strip(),    # 完整地址
+            "ship_address": str(rec.get("1000021", "") or "").strip(),# 送貨地址
+            "sales": str(rec.get("1000009", "") or "").strip(),      # 負責業務
             "category": str(rec.get("1000646", "") or "").strip(),   # 客戶類別 (醫院/同行)
         })
     # 按客戶編號排序，方便前端瀏覽
