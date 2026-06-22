@@ -502,13 +502,37 @@ def _ragic_create_order(po_no: str, items: list[dict]) -> dict:
             return {"po_no": po_no, "status": "error", "items": len(items),
                     "message": f"非 JSON 回應 (檢查 ?api 與 API Key): {r.text[:300]}"}
         if body.get("status") == "SUCCESS":
+            ragic_id = body.get("ragicId")
+            # 觸發 Ragic 連結載入：寫入後立刻 POST 同 record_id 重送客戶編號
+            # 這通常會逼 Ragic 重新計算「載入欄位」(客戶名稱/類別/地址等)
+            _ragic_trigger_link_reload(ragic_id, payload)
             return {"po_no": po_no, "status": "success",
-                    "ragic_id": body.get("ragicId"), "items": len(items)}
+                    "ragic_id": ragic_id, "items": len(items)}
         return {"po_no": po_no, "status": "error", "items": len(items),
                 "message": str(body)[:300]}
     except Exception as e:
         return {"po_no": po_no, "status": "error", "items": len(items),
                 "message": f"{type(e).__name__}: {e}"}
+
+def _ragic_trigger_link_reload(ragic_id, payload: dict):
+    """寫入連結欄位後，發第二次 POST 更新同 record_id 觸發 Ragic 重新計算載入欄位。
+    失敗也不影響主寫入結果 (best-effort)。"""
+    if not ragic_id:
+        return
+    customer_code = payload.get("1000319", "")
+    if not customer_code:
+        return
+    try:
+        headers = _ragic_headers({"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"})
+        url = f"{_ragic_url()}/{ragic_id}?api"
+        # 重送客戶編號 + 觸發載入欄位重算 (連結欄位變化時 Ragic 應重新載入)
+        trigger_payload = {"1000319": str(customer_code)}
+        encoded = "&".join(
+            f"{k}={requests.utils.quote(str(v), safe='')}" for k, v in trigger_payload.items()
+        ).encode("utf-8")
+        requests.post(url, data=encoded, headers=headers, timeout=15)
+    except Exception:
+        pass  # best-effort，不影響主寫入
 
 @lru_cache(maxsize=1)
 def _ragic_load_customers() -> list:
