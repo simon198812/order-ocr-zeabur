@@ -217,6 +217,21 @@ def _natural_sort_key(f):
     pts = re.split(r'(\d+)', (f.filename or '').lower())
     return [int(p) if p.isdigit() else p for p in pts]
 
+def _try_recover_truncated_json(text: str) -> Optional[str]:
+    """Gemini 輸出 JSON 被截斷時的緊急救援。
+    找最後一個完整的 order 物件結尾「},」，截斷後補上 ]}，
+    至少保住前面成功的訂單資料。"""
+    if not text:
+        return None
+    last_complete = text.rfind('},')
+    if last_complete < 0:
+        # 沒有任何完整的 order，或者整個輸出已經有完整 }}
+        last_complete = text.rfind('}}')
+        if last_complete < 0:
+            return None
+        return text[:last_complete + 2]
+    return text[:last_complete + 1] + ']}'
+
 # ------------------- OCR 核心 -------------------
 def extract_orders_from_file(file_bytes: bytes, filename: str) -> list[dict]:
     """用 Gemini 從檔案 (圖片/PDF) 萃取訂單資料"""
@@ -250,10 +265,30 @@ def extract_orders_from_file(file_bytes: bytes, filename: str) -> list[dict]:
             response_mime_type="application/json",
             response_schema=_RESPONSE_SCHEMA,
             temperature=0.1,
+            max_output_tokens=65536,  # 大幅放寬避免品項多時被截斷
         ),
     )
 
-    data = json.loads(response.text)
+    raw_text = response.text
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError as e:
+        # 嘗試恢復截斷的 JSON (保住前面成功的訂單)
+        recovered = _try_recover_truncated_json(raw_text or "")
+        if recovered:
+            try:
+                data = json.loads(recovered)
+            except Exception:
+                raise ValueError(
+                    f"Gemini 輸出 JSON 解析失敗 ({e})；輸出長度 {len(raw_text or '')} 字元，"
+                    f"恢復截斷後仍失敗。請拆分 PDF 成更小檔案再試。"
+                ) from e
+        else:
+            raise ValueError(
+                f"Gemini 輸出 JSON 解析失敗 ({e})；輸出長度 {len(raw_text or '')} 字元。"
+                f"請拆分 PDF 成更小檔案再試。"
+            ) from e
+
     orders = data.get("orders", [])
     # 格式後處理
     orders = [_clean_order(o) for o in orders]
