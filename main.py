@@ -21,6 +21,7 @@ import hmac
 import re
 import secrets
 import tempfile
+from datetime import datetime
 from functools import lru_cache
 from typing import Optional
 
@@ -517,6 +518,67 @@ def _api_key_fingerprint(k: str) -> dict:
         "has_control_char": has_ctrl,
         "has_whitespace": has_space,
     }
+
+@app.get("/ragic/test-write", dependencies=[Depends(require_auth)])
+def ragic_test_write(ragic_po: Optional[str] = None):
+    """測試寫入一筆最小資料到 Ragic 訂單總單，驗證權限與連線。
+
+    成功會在 Ragic 真的建立一筆紀錄，記得手動刪掉！
+    可用 ?ragic_po=TEST-001 指定訂單編號，預設用時間戳避免衝突。
+    """
+    out = {
+        "enabled": RAGIC_ENABLED,
+        "configured": bool(RAGIC_API_KEY),
+        "url": _ragic_url(),
+    }
+    if not RAGIC_ENABLED:
+        out["ok"] = False
+        out["message"] = "RAGIC_ENABLED=false"
+        return out
+    if not RAGIC_API_KEY:
+        out["ok"] = False
+        out["message"] = "未設定 RAGIC_API_KEY"
+        return out
+
+    if not ragic_po:
+        ragic_po = "TEST-" + datetime.now().strftime("%Y%m%d%H%M%S")
+
+    today = datetime.now().strftime("%Y/%m/%d")
+    payload = {
+        "1000320": ragic_po,                          # 訂單編號 (必填)
+        "1000322": today,                             # 訂單日期 (必填)
+        "1000339": "OCR 系統測試寫入 — 確認後可刪除",  # 備註
+    }
+    out["request_payload"] = payload
+
+    url = f"{_ragic_url()}?api"
+    headers = {"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"}
+    try:
+        encoded = "&".join(
+            f"{k}={requests.utils.quote(str(v), safe='')}" for k, v in payload.items()
+        ).encode("utf-8")
+        r = requests.post(url, data=encoded, headers=headers, auth=_ragic_auth(), timeout=30)
+        out["http_status"] = r.status_code
+        try:
+            body = r.json()
+            out["response"] = body
+            if body.get("status") == "SUCCESS":
+                rid = body.get("ragicId")
+                out["ok"] = True
+                out["ragic_id"] = rid
+                out["view_url"] = f"{_ragic_url()}/{rid}"
+                out["message"] = f"✅ 寫入成功 (ragic_id={rid})！請去 Ragic 訂單總單看這筆並刪除"
+            else:
+                out["ok"] = False
+                out["message"] = f"❌ 失敗 (code {body.get('code')}): {body.get('msg', '')[:300]}"
+        except Exception:
+            out["ok"] = False
+            out["response_text"] = r.text[:500]
+            out["message"] = "❌ Ragic 回應非 JSON"
+    except Exception as e:
+        out["ok"] = False
+        out["message"] = f"連線錯誤: {type(e).__name__}: {e}"
+    return out
 
 @app.get("/ragic/diag", dependencies=[Depends(require_auth)])
 def ragic_diag():
