@@ -343,18 +343,26 @@ def _ragic_url() -> str:
 def _ragic_auth():
     return (RAGIC_API_KEY, "")
 
+def _extract_record_ids(data) -> list[str]:
+    """從 Ragic GET 回應 dict 中只挑出真實 record_id (純數字 key)。
+    過濾掉 Ragic 可能夾帶的 metadata key (例如 status, msg)。"""
+    if not isinstance(data, dict):
+        return []
+    return [str(k) for k in data.keys() if str(k).isdigit()]
+
 def _ragic_check_duplicate(po_no: str) -> Optional[str]:
-    """查 Ragic 是否已有同 po_no 訂單，存在回 record_id；查詢失敗也回 None (不擋寫入)。"""
+    """查 Ragic 是否已有同訂單編號 (1000320)；存在回 record_id；查詢失敗回 None (不擋寫入)。"""
+    if not po_no:
+        return None
     url = f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&where=1000320,eq,{po_no}"
     try:
         r = requests.get(url, auth=_ragic_auth(), timeout=15)
         r.raise_for_status()
         data = r.json()
-        if isinstance(data, dict) and data:
-            return next(iter(data.keys()))
+        ids = _extract_record_ids(data)
+        return ids[0] if ids else None
     except Exception:
         return None
-    return None
 
 def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
     """構造 Ragic POST form 參數 (主表 + 子表 1000341)。
@@ -522,9 +530,12 @@ def ragic_diag():
             return out
         try:
             data = r.json()
+            ids = _extract_record_ids(data)
             out["result"] = "成功"
-            out["record_count_returned"] = len(data) if isinstance(data, dict) else 0
-            out["sample_record_id"] = next(iter(data.keys()), None) if isinstance(data, dict) and data else None
+            out["record_count_returned"] = len(ids)
+            out["sample_record_id"] = ids[0] if ids else None
+            if isinstance(data, dict):
+                out["response_top_keys"] = list(data.keys())[:5]
         except Exception:
             out["result"] = "回應非 JSON (可能 API Key 錯誤或網址錯誤)"
             out["body_preview"] = r.text[:500]
