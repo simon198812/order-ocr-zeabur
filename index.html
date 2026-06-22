@@ -102,13 +102,15 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 <script>
 const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
-// Ragic 寫入必填：ragic_po (使用者手填) + date (OCR 抓但可改)
-const REQUIRED_FOR_RAGIC = ['ragic_po', 'date'];
+let customerList = [];  // Ragic 客戶清單 [{code, name, short_name, category}]
+// Ragic 寫入必填：ragic_po + date + ragic_customer_code (客戶編號)
+const REQUIRED_FOR_RAGIC = ['ragic_po', 'date', 'ragic_customer_code'];
 
 // 欄位中文對照表
 const FIELD_LABELS = {
-  ragic_po:     '🟧 Ragic 訂單編號 (手動填)',
-  hospital:     '客戶名稱(醫院)',
+  ragic_po:           '🟧 Ragic 訂單編號 (手動填)',
+  ragic_customer_code:'🟦 Ragic 客戶 (下拉選)',
+  hospital:           '客戶名稱(醫院)',
   date:         '訂購日期',
   deadline:     '交貨期限/預計到貨日',
   vendor:       '廠商名稱',
@@ -133,9 +135,9 @@ const FIELD_LABELS = {
   warranty:     '保固月數',
 };
 
-// 預覽時顯示的欄位順序 (Ragic 訂單編號放最前面方便先填)
+// 預覽時顯示的欄位順序 (Ragic 寫入用欄位放最前面)
 const DISPLAY_FIELDS = [
-  'ragic_po',
+  'ragic_po','ragic_customer_code',
   'hospital','date','deadline','vendor','loc','type','material_id',
   'item','brand','qty','unit','price','total',
   'dept','user','ext',
@@ -159,7 +161,49 @@ async function doLogin() {
   if (r.ok) { $('loginSection').classList.add('hidden'); showMain(); }
   else { $('loginError').textContent='密碼錯誤'; $('loginError').style.display='block'; }
 }
-function showMain() { $('mainSection').classList.remove('hidden'); }
+function showMain() {
+  $('mainSection').classList.remove('hidden');
+  loadCustomers();
+}
+
+async function loadCustomers() {
+  try {
+    const r = await fetch('/ragic/customers');
+    if (!r.ok) return;
+    const d = await r.json();
+    customerList = d.customers || [];
+    console.log(`Loaded ${customerList.length} Ragic customers`);
+  } catch(e) {
+    console.warn('載入客戶清單失敗:', e);
+  }
+}
+
+// 模糊比對 OCR hospital → 客戶清單，找最匹配的客戶編號 (空字串=找不到)
+function guessCustomerCode(hospital) {
+  if (!hospital || !customerList.length) return '';
+  const h = String(hospital).trim();
+  if (!h) return '';
+  // 1. 完整名稱完全相等
+  let m = customerList.find(c => c.name === h);
+  if (m) return m.code;
+  // 2. 簡稱完全相等
+  m = customerList.find(c => c.short_name === h);
+  if (m) return m.code;
+  // 3. hospital 包含簡稱 (例如「林新醫療社團法人林新醫院」包含「林新醫院」)
+  m = customerList.find(c => c.short_name && h.includes(c.short_name));
+  if (m) return m.code;
+  // 4. hospital 包含完整名稱片段 (反向)
+  m = customerList.find(c => c.name && h.includes(c.name));
+  if (m) return m.code;
+  // 5. 客戶簡稱包含 hospital (反向，hospital 較短時)
+  m = customerList.find(c => c.short_name && c.short_name.includes(h));
+  if (m) return m.code;
+  return '';
+}
+
+function findCustomer(code) {
+  return customerList.find(c => c.code === code);
+}
 
 $('uploadArea').addEventListener('click', () => $('fileInput').click());
 $('fileInput').addEventListener('change', e => handleFiles(e.target.files));
@@ -258,19 +302,34 @@ function renderRagicSummary() {
   const noPo = pendingOrders.filter(o => !(o.po_no || '').trim()).length;
   if (!poList.length && !noPo) { box.innerHTML = ''; return; }
 
-  let html = `<div class="ragic-summary"><h3>📋 將寫入 Ragic 的訂單 (按 po_no 分組，主表編號用「Ragic 訂單編號」)</h3>`;
+  let html = `<div class="ragic-summary"><h3>📋 將寫入 Ragic 的訂單 (按 po_no 分組)</h3>`;
   poList.forEach(po => {
     const items = groups[po];
     const h = items[0];
     const ragicPo = (items.find(it => (it.ragic_po || '').trim())?.ragic_po || '').trim();
+    const custCode = (items.find(it => (it.ragic_customer_code || '').trim())?.ragic_customer_code || '').trim();
+    const custObj = findCustomer(custCode);
+
     const ragicPoDisplay = ragicPo
-      ? `<span class="po">${ragicPo}</span> <span class="meta">(po_no: ${po})</span>`
-      : `<span style="color:#d63031">⚠ 未填 Ragic 訂單編號</span> <span class="meta">(po_no: ${po})</span>`;
+      ? `<span class="po">${ragicPo}</span>`
+      : `<span style="color:#d63031">⚠ 未填 Ragic 訂單編號</span>`;
     const dateBad = !h.date ? ' <span style="color:#d63031">(缺日期)</span>' : '';
+
+    let custLine;
+    if (custObj) {
+      const taxPct = custObj.category === '醫院' ? '0%' : '5%';
+      custLine = `客戶：<b>${custCode}</b> ${custObj.short_name || custObj.name} (${custObj.category}) · 營業稅 <b>${taxPct}</b>`;
+    } else if (custCode) {
+      custLine = `<span style="color:#d63031">⚠ 客戶清單找不到 "${custCode}"，連結會以純文字存，營業稅 5%</span>`;
+    } else {
+      custLine = `<span style="color:#d63031">⚠ 未選客戶</span>`;
+    }
+
     html += `<div class="ragic-row">
       <div>
-        <div>${ragicPoDisplay}${dateBad}</div>
-        <div class="meta">${h.date || '？'} ｜ ${h.vendor || '—'} ｜ 客戶/交貨：${h.loc || '—'}</div>
+        <div>${ragicPoDisplay} <span class="meta">(po_no: ${po})</span>${dateBad}</div>
+        <div class="meta">${h.date || '？'} ｜ ${h.vendor || '—'}</div>
+        <div class="meta">${custLine}</div>
       </div>
       <span class="count">${items.length} 個品項</span>
     </div>`;
@@ -278,7 +337,7 @@ function renderRagicSummary() {
   if (noPo) {
     html += `<div class="ragic-row warn"><div>⚠️ 有 ${noPo} 筆品項 OCR 沒抓到 po_no</div><span class="meta">將跳過 Ragic，仍寫入 Sheet</span></div>`;
   }
-  html += `<div class="ragic-warn-text">寫入規則：同 po_no 合併為一筆 Ragic 訂單；主表「訂單編號 (1000320)」用你填的「Ragic 訂單編號」；「訂單號碼(客戶) (1000398)」用醫院的 po_no。已存在的訂單編號會自動跳過。</div></div>`;
+  html += `<div class="ragic-warn-text">寫入規則：同 po_no 合併為一筆 Ragic 訂單；訂單編號用「Ragic 訂單編號」；客戶編號用下拉選的客戶；營業稅依客戶類別 (醫院 0%、其他 5%)；已存在的訂單編號會自動跳過。</div></div>`;
   box.innerHTML = html;
 }
 
@@ -309,7 +368,7 @@ $('submitBtn').addEventListener('click', async () => {
 
   const missing = validateRequired();
   if (missing.length) {
-    alert(`還有 ${missing.length} 個必填欄位 (Ragic 訂單編號 / 訂購日期) 沒填，已用紅框標出，請補齊後再送出。\n\n備註：Ragic 主表「訂單編號 (1000320)」用你手動填入的「Ragic 訂單編號」，與醫院 po_no 分開。`);
+    alert(`還有 ${missing.length} 個必填欄位沒填，已用紅框標出。\n\nRagic 主表必填：\n• 🟧 Ragic 訂單編號 (手動填)\n• 🟦 Ragic 客戶 (下拉選)\n• 訂購日期`);
     const first = missing[0].input;
     first.scrollIntoView({behavior:'smooth', block:'center'});
     first.focus();
@@ -343,8 +402,15 @@ function displayResults(resultsData, showSubmit) {
       div.innerHTML = `<div class="result-header"><span class="result-filename">❌ ${r.filename}</span><span class="result-badge error">失敗</span></div><div style="color:#d63031;font-size:.88rem">${r.message}</div>`;
     } else {
       const orders = r.orders||[];
-      // 為每筆 order 初始化 ragic_po (使用者手填)，預設空字串
-      orders.forEach(o => { if (o.ragic_po === undefined) o.ragic_po = ''; });
+      // 初始化新欄位：ragic_po 預設空、ragic_customer_code 預設用 hospital 模糊匹配
+      orders.forEach(o => {
+        if (o.ragic_po === undefined) o.ragic_po = '';
+        if (o.ragic_customer_code === undefined) {
+          o.ragic_customer_code = guessCustomerCode(o.hospital);
+        }
+        const c = findCustomer(o.ragic_customer_code);
+        o.ragic_customer_category = c ? c.category : '';
+      });
       pendingOrders.push(...orders);
 
       let ordersHTML = '';
@@ -356,13 +422,35 @@ function displayResults(resultsData, showSubmit) {
           const val = (o[k] !== undefined && o[k] !== null) ? o[k] : '';
           const isEmpty = (val === '' || val === 0 || val === '0');
           const label = FIELD_LABELS[k] || k;
-          ordersHTML += `<div class="field-row">
-            <span class="order-label">${label}:</span>
-            <input type="text" class="editable-field${isEmpty ? ' is-empty' : ''}"
-                   value="${String(val).replace(/"/g,'&quot;')}"
-                   data-order-idx="${globalIdx}" data-field="${k}"
-                   ${isEmpty ? 'placeholder="（未抓到，請補）"' : ''}>
-          </div>`;
+
+          if (k === 'ragic_customer_code') {
+            // 客戶下拉：渲染 select，options 來自 customerList
+            const curCode = String(val);
+            let opts = `<option value="">— 請選擇客戶 —</option>`;
+            customerList.forEach(c => {
+              const sel = c.code === curCode ? ' selected' : '';
+              const display = `${c.code} ${c.short_name || c.name} (${c.category || '?'})`;
+              opts += `<option value="${c.code}"${sel}>${display.replace(/</g,'&lt;')}</option>`;
+            });
+            const matched = findCustomer(curCode);
+            const taxHint = matched
+              ? `<span style="color:#666;font-size:.78rem;margin-left:8px">→ 類別 ${matched.category}，營業稅 ${matched.category==='醫院'?'0%':'5%'}</span>`
+              : (curCode ? `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ 客戶清單找不到 ${curCode}</span>` : '');
+            ordersHTML += `<div class="field-row">
+              <span class="order-label">${label}:</span>
+              <select class="editable-field${isEmpty ? ' is-empty' : ''}"
+                      data-order-idx="${globalIdx}" data-field="${k}">${opts}</select>
+              ${taxHint}
+            </div>`;
+          } else {
+            ordersHTML += `<div class="field-row">
+              <span class="order-label">${label}:</span>
+              <input type="text" class="editable-field${isEmpty ? ' is-empty' : ''}"
+                     value="${String(val).replace(/"/g,'&quot;')}"
+                     data-order-idx="${globalIdx}" data-field="${k}"
+                     ${isEmpty ? 'placeholder="（未抓到，請補）"' : ''}>
+            </div>`;
+          }
         });
 
         ordersHTML += `</div>`;
@@ -380,34 +468,50 @@ function displayResults(resultsData, showSubmit) {
   }
 
   // 編輯到會影響 Ragic 摘要的欄位時自動重算
-  const watchFields = new Set(['po_no','date','vendor','loc','ragic_po']);
+  const watchFields = new Set(['po_no','date','vendor','loc','ragic_po','ragic_customer_code']);
   document.querySelectorAll('.editable-field').forEach(input => {
     input.addEventListener('input', () => {
       const field = input.dataset.field;
-      // ragic_po: 同 po_no 群組內自動同步 (一張訂單只用填一次)
-      if (field === 'ragic_po') {
-        const idx = parseInt(input.dataset.orderIdx);
-        const myPo = (pendingOrders[idx]?.po_no || '').trim();
+      const idx = parseInt(input.dataset.orderIdx);
+      const myPo = (pendingOrders[idx]?.po_no || '').trim();
+      const newVal = input.value;
+
+      // ragic_po / ragic_customer_code: 同 po_no 群組內自動同步
+      if ((field === 'ragic_po' || field === 'ragic_customer_code') && myPo) {
+        document.querySelectorAll(`.editable-field[data-field="${field}"]`).forEach(other => {
+          if (other === input) return;
+          const otherIdx = parseInt(other.dataset.orderIdx);
+          const otherPo = (pendingOrders[otherIdx]?.po_no || '').trim();
+          if (otherPo === myPo && other.value !== newVal) {
+            other.value = newVal;
+            if (String(newVal).trim()) other.classList.remove('is-empty', 'is-invalid');
+            else other.classList.add('is-empty');
+          }
+        });
+      }
+
+      // ragic_customer_code: 自動更新對應的 ragic_customer_category (給後端用)
+      if (field === 'ragic_customer_code') {
+        const matched = findCustomer(newVal);
+        const newCat = matched ? matched.category : '';
+        pendingOrders[idx].ragic_customer_category = newCat;
+        // 同 po_no 群組 category 也同步
         if (myPo) {
-          const newVal = input.value;
-          document.querySelectorAll('.editable-field[data-field="ragic_po"]').forEach(other => {
-            if (other === input) return;
-            const otherIdx = parseInt(other.dataset.orderIdx);
-            const otherPo = (pendingOrders[otherIdx]?.po_no || '').trim();
-            if (otherPo === myPo && other.value !== newVal) {
-              other.value = newVal;
-              if (newVal.trim()) other.classList.remove('is-empty', 'is-invalid');
-              else other.classList.add('is-empty');
+          pendingOrders.forEach((o, i) => {
+            if (i !== idx && (o.po_no || '').trim() === myPo) {
+              o.ragic_customer_category = newCat;
+              o.ragic_customer_code = newVal;
             }
           });
         }
       }
+
       if (!watchFields.has(field)) return;
       collectEdits();
       renderRagicSummary();
     });
     input.addEventListener('blur', () => {
-      if (REQUIRED_FOR_RAGIC.includes(input.dataset.field) && input.value.trim()) {
+      if (REQUIRED_FOR_RAGIC.includes(input.dataset.field) && String(input.value).trim()) {
         input.classList.remove('is-invalid');
       }
     });
