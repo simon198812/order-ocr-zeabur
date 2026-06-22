@@ -47,10 +47,11 @@ GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON", "").strip()
 APP_PASSWORD            = os.getenv("APP_PASSWORD", "").strip()
 
 # Ragic (SFinc 帳號 / 訂單總單 KEY訂單 表單 ID = 4)
-RAGIC_BASE_URL  = os.getenv("RAGIC_BASE_URL", "https://ap2.ragic.com/SFinc").strip().rstrip("/")
-RAGIC_FORM_PATH = os.getenv("RAGIC_FORM_PATH", "/forms2/4").strip()
-RAGIC_API_KEY   = os.getenv("RAGIC_API_KEY", "").strip()
-RAGIC_ENABLED   = os.getenv("RAGIC_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
+RAGIC_BASE_URL    = os.getenv("RAGIC_BASE_URL", "https://ap2.ragic.com/SFinc").strip().rstrip("/")
+RAGIC_FORM_PATH   = os.getenv("RAGIC_FORM_PATH", "/forms2/4").strip()
+RAGIC_CUSTOMER_PATH = os.getenv("RAGIC_CUSTOMER_PATH", "/e5aea2e688b6/1").strip()
+RAGIC_API_KEY     = os.getenv("RAGIC_API_KEY", "").strip()
+RAGIC_ENABLED     = os.getenv("RAGIC_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
 
 # Session (重啟失效,簡單安全)
 SESSION_SECRET = secrets.token_urlsafe(32)
@@ -370,11 +371,22 @@ def _ragic_check_duplicate(po_no: str) -> Optional[str]:
     except Exception:
         return None
 
+def _pick_customer(items: list[dict]) -> tuple[str, str]:
+    """從群組挑第一個有值的 ragic_customer_code 與類別；回傳 (code, category)。"""
+    for it in items:
+        code = str(it.get("ragic_customer_code", "") or "").strip()
+        if code:
+            cat = str(it.get("ragic_customer_category", "") or "").strip()
+            return code, cat
+    return "", ""
+
 def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
     """構造 Ragic POST form 參數 (主表 + 子表 1000341)。
 
-    - 1000320 訂單編號：來自使用者手填的 ragic_po (取群組內第一個非空)
-    - 1000398 訂單號碼(客戶)：仍用 OCR 抓的 po_no (醫院 M+9碼)
+    - 1000320 訂單編號：來自使用者手填的 ragic_po
+    - 1000319 客戶編號：使用者前端從下拉選的 ragic_customer_code (Ragic 客戶資料表編號)
+    - 1000654 營業稅：客戶類別=醫院 → 0；其他 → 0.05
+    - 1000398 訂單號碼(客戶)：仍用 OCR 抓的 po_no
     """
     head = items[0]
 
@@ -382,6 +394,14 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         return str(head.get(k, "") or "").strip()
 
     ragic_po = _pick_ragic_po(items, fallback=po_no)
+    cust_code, cust_category = _pick_customer(items)
+
+    # 客戶編號 fallback: 沒選的話用 OCR loc/hospital (純文字，連結會斷)
+    if not cust_code:
+        cust_code = _s("loc") or _s("hospital")
+
+    # 營業稅: 醫院 0%，其他 5%
+    tax_rate = "0" if cust_category == "醫院" else "0.05"
 
     apply_unit_parts = [v for v in (_s("dept"), _s("user"), _s("ext")) if v]
     apply_unit = " / ".join(apply_unit_parts)
@@ -390,8 +410,8 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         "1002403": _map_vendor_to_company(head.get("vendor", "")),  # 公司 (單選)
         "1000320": ragic_po,                                        # 訂單編號 (使用者手填)
         "1000322": _minguo_to_western(head.get("date", "")),        # 訂單日期 (必填)
-        "1000319": _s("loc"),                                       # 客戶編號 (連結欄位，必填)
-        "1000654": "0.05",                                          # 營業稅(選%) (必填，預設 5%，醫院可在 Ragic 改 0)
+        "1000319": cust_code,                                       # 客戶編號 (連結欄位，必填)
+        "1000654": tax_rate,                                        # 營業稅(選%) (必填)
         "1000398": po_no,                                           # 訂單號碼(客戶) — 醫院 po_no
         "1000399": apply_unit,                                      # 申請單位
         "1000339": _s("note"),                                      # 主表備註
@@ -439,6 +459,42 @@ def _ragic_create_order(po_no: str, items: list[dict]) -> dict:
     except Exception as e:
         return {"po_no": po_no, "status": "error", "items": len(items),
                 "message": f"{type(e).__name__}: {e}"}
+
+@lru_cache(maxsize=1)
+def _ragic_load_customers() -> list:
+    """從 (尚鋒) 客戶資料 表單抓全部客戶；快取於記憶體 (lru_cache)。
+    回傳 [{ragic_id, code, name, short_name, category}]。"""
+    if not RAGIC_API_KEY:
+        return []
+    url = (
+        f"{RAGIC_BASE_URL}{RAGIC_CUSTOMER_PATH}?api&naming=EID"
+        f"&subtables=0&limit=0,1000"
+    )
+    try:
+        r = requests.get(url, headers=_ragic_headers(), timeout=20)
+        r.raise_for_status()
+        data = r.json()
+    except Exception:
+        return []
+    if not isinstance(data, dict):
+        return []
+    customers = []
+    for rid, rec in data.items():
+        if not str(rid).isdigit() or not isinstance(rec, dict):
+            continue
+        code = str(rec.get("1000001", "") or "").strip()
+        if not code:
+            continue
+        customers.append({
+            "ragic_id": str(rid),
+            "code": code,
+            "name": str(rec.get("1000002", "") or "").strip(),       # 客戶名稱
+            "short_name": str(rec.get("1000003", "") or "").strip(), # 客戶簡稱
+            "category": str(rec.get("1000646", "") or "").strip(),   # 客戶類別 (醫院/同行)
+        })
+    # 按客戶編號排序，方便前端瀏覽
+    customers.sort(key=lambda c: c["code"])
+    return customers
 
 def _pick_ragic_po(items: list[dict], fallback: str) -> str:
     """從群組內挑第一個有值的 ragic_po；都空就 fallback。"""
@@ -524,6 +580,14 @@ def _api_key_fingerprint(k: str) -> dict:
         "has_control_char": has_ctrl,
         "has_whitespace": has_space,
     }
+
+@app.get("/ragic/customers", dependencies=[Depends(require_auth)])
+def ragic_customers(refresh: int = 0):
+    """回傳 (尚鋒) 客戶資料表清單給前端做下拉。?refresh=1 強制清快取重抓。"""
+    if refresh:
+        _ragic_load_customers.cache_clear()
+    customers = _ragic_load_customers()
+    return {"count": len(customers), "customers": customers}
 
 @app.get("/ragic/test-write", dependencies=[Depends(require_auth)])
 def ragic_test_write(ragic_po: Optional[str] = None):
