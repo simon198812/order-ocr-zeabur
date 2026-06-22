@@ -390,7 +390,8 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         "1002403": _map_vendor_to_company(head.get("vendor", "")),  # 公司 (單選)
         "1000320": ragic_po,                                        # 訂單編號 (使用者手填)
         "1000322": _minguo_to_western(head.get("date", "")),        # 訂單日期 (必填)
-        "1000319": _s("loc"),                                       # 客戶編號 (連結欄位)
+        "1000319": _s("loc"),                                       # 客戶編號 (連結欄位，必填)
+        "1000654": "0.05",                                          # 營業稅(選%) (必填，預設 5%，醫院可在 Ragic 改 0)
         "1000398": po_no,                                           # 訂單號碼(客戶) — 醫院 po_no
         "1000399": apply_unit,                                      # 申請單位
         "1000339": _s("note"),                                      # 主表備註
@@ -552,6 +553,8 @@ def ragic_test_write(ragic_po: Optional[str] = None):
     payload = {
         "1000320": ragic_po,                          # 訂單編號 (必填)
         "1000322": today,                             # 訂單日期 (必填)
+        "1000319": "TEST-CUSTOMER",                   # 客戶編號 (必填，連結欄位，純文字佔位)
+        "1000654": "0.05",                            # 營業稅(選%) (必填，5%)
         "1000339": "OCR 系統測試寫入 — 確認後可刪除",  # 備註
     }
     out["request_payload"] = payload
