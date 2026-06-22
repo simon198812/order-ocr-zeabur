@@ -341,8 +341,13 @@ def _group_orders_by_po(orders: list[dict]) -> dict:
 def _ragic_url() -> str:
     return f"{RAGIC_BASE_URL}{RAGIC_FORM_PATH}"
 
-def _ragic_auth():
-    return (RAGIC_API_KEY, "")
+def _ragic_headers(extra: Optional[dict] = None) -> dict:
+    """Ragic 官方建議用法：Authorization: Basic {api_key} (直接放，不再 base64 encode)。
+    Ragic 的 API Key 本身已經是 Base64 字串。"""
+    h = {"Authorization": f"Basic {RAGIC_API_KEY}"}
+    if extra:
+        h.update(extra)
+    return h
 
 def _extract_record_ids(data) -> list[str]:
     """從 Ragic GET 回應 dict 中只挑出真實 record_id (純數字 key)。
@@ -357,7 +362,7 @@ def _ragic_check_duplicate(po_no: str) -> Optional[str]:
         return None
     url = f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&where=1000320,eq,{po_no}"
     try:
-        r = requests.get(url, auth=_ragic_auth(), timeout=15)
+        r = requests.get(url, headers=_ragic_headers(), timeout=15)
         r.raise_for_status()
         data = r.json()
         ids = _extract_record_ids(data)
@@ -409,14 +414,14 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
 
 def _ragic_create_order(po_no: str, items: list[dict]) -> dict:
     payload = _build_ragic_payload(po_no, items)
-    headers = {"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"}
+    headers = _ragic_headers({"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"})
     url = f"{_ragic_url()}?api"
     try:
         # 編碼成 UTF-8 byte string，避免 requests 預設用 latin-1 處理中文
         encoded = "&".join(
             f"{k}={requests.utils.quote(str(v), safe='')}" for k, v in payload.items()
         ).encode("utf-8")
-        r = requests.post(url, data=encoded, headers=headers, auth=_ragic_auth(), timeout=30)
+        r = requests.post(url, data=encoded, headers=headers, timeout=30)
         if r.status_code != 200:
             return {"po_no": po_no, "status": "error", "items": len(items),
                     "message": f"HTTP {r.status_code}: {r.text[:300]}"}
@@ -552,12 +557,12 @@ def ragic_test_write(ragic_po: Optional[str] = None):
     out["request_payload"] = payload
 
     url = f"{_ragic_url()}?api"
-    headers = {"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"}
+    headers = _ragic_headers({"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"})
     try:
         encoded = "&".join(
             f"{k}={requests.utils.quote(str(v), safe='')}" for k, v in payload.items()
         ).encode("utf-8")
-        r = requests.post(url, data=encoded, headers=headers, auth=_ragic_auth(), timeout=30)
+        r = requests.post(url, data=encoded, headers=headers, timeout=30)
         out["http_status"] = r.status_code
         try:
             body = r.json()
@@ -598,7 +603,7 @@ def ragic_diag():
     try:
         r = requests.get(
             f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&limit=0,1",
-            auth=_ragic_auth(), timeout=15,
+            headers=_ragic_headers(), timeout=15,
         )
         out["http_status"] = r.status_code
         if r.status_code != 200:
