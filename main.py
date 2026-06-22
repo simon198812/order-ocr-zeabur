@@ -692,11 +692,14 @@ def ragic_customers(refresh: int = 0):
     return {"count": len(customers), "customers": customers}
 
 @app.get("/ragic/test-write", dependencies=[Depends(require_auth)])
-def ragic_test_write(ragic_po: Optional[str] = None):
+def ragic_test_write(ragic_po: Optional[str] = None, customer_code: Optional[str] = None):
     """測試寫入一筆最小資料到 Ragic 訂單總單，驗證權限與連線。
+    寫入成功會立刻讀回 record 顯示載入欄位是否被自動填入。
 
     成功會在 Ragic 真的建立一筆紀錄，記得手動刪掉！
-    可用 ?ragic_po=TEST-001 指定訂單編號，預設用時間戳避免衝突。
+    參數：
+    - ragic_po: 訂單編號 (1000320)；預設時間戳
+    - customer_code: 客戶編號 (1000319)；預設 'TEST-CUSTOMER'，可傳真實如 '35'
     """
     out = {
         "enabled": RAGIC_ENABLED,
@@ -714,12 +717,14 @@ def ragic_test_write(ragic_po: Optional[str] = None):
 
     if not ragic_po:
         ragic_po = "TEST-" + datetime.now().strftime("%Y%m%d%H%M%S")
+    if not customer_code:
+        customer_code = "TEST-CUSTOMER"
 
     today = datetime.now().strftime("%Y/%m/%d")
     payload = {
         "1000320": ragic_po,                          # 訂單編號 (必填)
         "1000322": today,                             # 訂單日期 (必填)
-        "1000319": "TEST-CUSTOMER",                   # 客戶編號 (必填，連結欄位，純文字佔位)
+        "1000319": customer_code,                     # 客戶編號 (必填，連結欄位)
         "1000654": "0.05",                            # 營業稅(選%) (必填，5%)
         "1000339": "OCR 系統測試寫入 — 確認後可刪除",  # 備註
     }
@@ -742,6 +747,28 @@ def ragic_test_write(ragic_po: Optional[str] = None):
                 out["ragic_id"] = rid
                 out["view_url"] = f"{_ragic_url()}/{rid}"
                 out["message"] = f"✅ 寫入成功 (ragic_id={rid})！請去 Ragic 訂單總單看這筆並刪除"
+                # 立刻讀回 record 看載入欄位是否被自動填 (診斷 Ragic API 寫入時連結載入行為)
+                try:
+                    vr = requests.get(
+                        f"{_ragic_url()}/{rid}?api&naming=EID",
+                        headers=_ragic_headers(), timeout=10,
+                    )
+                    if vr.status_code == 200:
+                        rec = vr.json()
+                        if isinstance(rec, dict):
+                            out["loaded_fields"] = {
+                                "客戶編號_1000319": rec.get("1000319", ""),
+                                "客戶類別_1000530": rec.get("1000530", ""),
+                                "客戶名稱_1000321": rec.get("1000321", ""),
+                                "客戶簡稱_1000414": rec.get("1000414", ""),
+                                "客戶統編_1000415": rec.get("1000415", ""),
+                                "電話_1000325": rec.get("1000325", ""),
+                                "地址_1000329": rec.get("1000329", ""),
+                                "送貨地址_1000330": rec.get("1000330", ""),
+                                "負責業務_1006517": rec.get("1006517", ""),
+                            }
+                except Exception as e:
+                    out["verify_error"] = f"{type(e).__name__}: {e}"
             else:
                 out["ok"] = False
                 out["message"] = f"❌ 失敗 (code {body.get('code')}): {body.get('msg', '')[:300]}"
