@@ -504,6 +504,20 @@ def health():
         "model": GEMINI_MODEL,
     }
 
+def _api_key_fingerprint(k: str) -> dict:
+    """回傳 API Key 的指紋資訊 (不洩漏完整 Key)，方便排查環境變數有沒有夾雜垃圾。"""
+    if not k:
+        return {"length": 0, "has_control_char": False}
+    has_ctrl = any(ord(c) < 32 or ord(c) == 127 for c in k)
+    has_space = any(c in (" ", "\t", "\n", "\r") for c in k)
+    return {
+        "length": len(k),
+        "first4": k[:4],
+        "last4": k[-4:] if len(k) >= 4 else "",
+        "has_control_char": has_ctrl,
+        "has_whitespace": has_space,
+    }
+
 @app.get("/ragic/diag", dependencies=[Depends(require_auth)])
 def ragic_diag():
     """診斷 Ragic 連線：GET 訂單總單前 1 筆，回傳連線狀態。"""
@@ -511,6 +525,7 @@ def ragic_diag():
         "enabled": RAGIC_ENABLED,
         "configured": bool(RAGIC_API_KEY),
         "url": _ragic_url(),
+        "api_key_fingerprint": _api_key_fingerprint(RAGIC_API_KEY),
     }
     if not RAGIC_ENABLED:
         out["result"] = "RAGIC_ENABLED=false，跳過"
