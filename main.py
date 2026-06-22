@@ -393,18 +393,31 @@ def _extract_record_ids(data) -> list[str]:
     return [str(k) for k in data.keys() if str(k).isdigit()]
 
 def _ragic_check_duplicate(po_no: str) -> Optional[str]:
-    """查 Ragic 是否已有同訂單編號 (1000320)；存在回 record_id；查詢失敗回 None (不擋寫入)。"""
+    """查 Ragic 1000320 (訂單編號) 是否已有同值 record；存在回 record_id；查詢失敗回 None。
+
+    雙重驗證：除了 where 篩選，還比對 record 實際 1000320 值是否等於 po_no，
+    避免 Ragic where 偶爾沒生效時誤判為重複。
+    """
     if not po_no:
         return None
-    url = f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&where=1000320,eq,{po_no}"
+    encoded_po = requests.utils.quote(str(po_no), safe='')
+    url = f"{_ragic_url()}?api&naming=EID&subtables=0&limit=0,5&where=1000320,eq,{encoded_po}"
     try:
         r = requests.get(url, headers=_ragic_headers(), timeout=15)
         r.raise_for_status()
         data = r.json()
-        ids = _extract_record_ids(data)
-        return ids[0] if ids else None
     except Exception:
         return None
+    if not isinstance(data, dict):
+        return None
+    target = str(po_no).strip()
+    for rid, rec in data.items():
+        if not str(rid).isdigit() or not isinstance(rec, dict):
+            continue
+        stored = str(rec.get("1000320", "") or "").strip()
+        if stored == target:
+            return str(rid)
+    return None
 
 def _pick_customer(items: list[dict]) -> tuple[str, str]:
     """從群組挑第一個有值的 ragic_customer_code 與類別；回傳 (code, category)。"""
@@ -620,12 +633,14 @@ def _api_key_fingerprint(k: str) -> dict:
 
 @app.get("/ragic/check-dup", dependencies=[Depends(require_auth)])
 def ragic_check_dup(po: str):
-    """測試重複偵測：傳訂單編號，回傳是否真的存在 + Ragic 原始回應 keys。"""
+    """診斷重複偵測：傳訂單編號，回傳 Ragic 實際回的紀錄 + 每筆 1000320 是否真匹配。
+    用來看 Ragic where 篩選有沒有生效。"""
     out = {"query_po": po}
     if not RAGIC_ENABLED or not RAGIC_API_KEY:
         out["error"] = "Ragic 未啟用或未設定 API Key"
         return out
-    url = f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&where=1000320,eq,{po}"
+    encoded_po = requests.utils.quote(str(po), safe='')
+    url = f"{_ragic_url()}?api&naming=EID&subtables=0&limit=0,5&where=1000320,eq,{encoded_po}"
     out["url"] = url
     try:
         r = requests.get(url, headers=_ragic_headers(), timeout=15)
@@ -636,13 +651,31 @@ def ragic_check_dup(po: str):
             out["error"] = "回應非 JSON"
             out["body_preview"] = r.text[:300]
             return out
-        if isinstance(data, dict):
-            out["response_top_keys"] = list(data.keys())[:20]
-        ids = _extract_record_ids(data)
-        out["found_record_ids"] = ids
-        out["decision"] = "exists" if ids else "not_exists"
-        if ids:
-            out["view_url"] = f"{_ragic_url()}/{ids[0]}"
+        if not isinstance(data, dict):
+            out["decision"] = "not_exists"
+            out["raw_data_type"] = type(data).__name__
+            return out
+        out["response_top_keys"] = list(data.keys())[:20]
+        target = str(po).strip()
+        samples = []
+        matched_id = None
+        for rid, rec in data.items():
+            if not str(rid).isdigit() or not isinstance(rec, dict):
+                continue
+            stored = str(rec.get("1000320", "") or "").strip()
+            samples.append({
+                "record_id": str(rid),
+                "stored_1000320": stored,
+                "matches_query": stored == target,
+            })
+            if stored == target and not matched_id:
+                matched_id = str(rid)
+        out["samples"] = samples[:10]
+        out["matched_record_id"] = matched_id
+        out["decision"] = "exists" if matched_id else "not_exists"
+        out["where_filter_works"] = (len(samples) == 0) or all(s["matches_query"] for s in samples)
+        if matched_id:
+            out["view_url"] = f"{_ragic_url()}/{matched_id}"
     except Exception as e:
         out["error"] = f"{type(e).__name__}: {e}"
     return out
