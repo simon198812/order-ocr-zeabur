@@ -400,10 +400,14 @@ function formatRagicResultMsg(d) {
       const tag = r.status === 'success' ? '✓' : (r.status === 'skipped' ? '○' : '✗');
       const extra = r.message ? ` — ${r.message}` : '';
       const link = r.view_url ? `\n      ${r.view_url}` : '';
-      return `   ${tag} ${r.po_no} (${r.items} 品項)${extra}${link}`;
+      // 顯示實際查詢用的 ragic_po (若與 po_no 不同)，方便追查為何被判重複
+      const ragicPoTag = (r.ragic_po && r.ragic_po !== r.po_no)
+        ? ` [查詢用編號: ${r.ragic_po}]`
+        : '';
+      return `   ${tag} ${r.po_no}${ragicPoTag} (${r.items} 品項)${extra}${link}`;
     });
     msg += '\n' + lines.join('\n');
-    msg += '\n\n💡 點擊跳過的紀錄連結可確認是否真的是同一筆訂單。';
+    msg += '\n\n💡 點擊跳過的紀錄連結可確認是否真的是同一筆訂單。若 [查詢用編號] 跟 po_no 不同，那就是你在「Ragic 訂單編號」欄位填的值。';
   }
   return msg;
 }
