@@ -546,11 +546,20 @@ def ragic_diag():
         try:
             data = r.json()
             ids = _extract_record_ids(data)
-            out["result"] = "成功"
-            out["record_count_returned"] = len(ids)
-            out["sample_record_id"] = ids[0] if ids else None
             if isinstance(data, dict):
                 out["response_top_keys"] = list(data.keys())[:5]
+                # 若回的是錯誤格式 (含 status/msg/code)，把實際錯誤訊息吐出來
+                if "status" in data and "msg" in data:
+                    out["result"] = f"Ragic 回錯誤：{data.get('status')} (code {data.get('code')})"
+                    out["ragic_error_msg"] = data.get("msg", "")[:500]
+                else:
+                    out["result"] = "成功"
+                    out["record_count_returned"] = len(ids)
+                    out["sample_record_id"] = ids[0] if ids else None
+            else:
+                out["result"] = "成功"
+                out["record_count_returned"] = len(ids)
+                out["sample_record_id"] = ids[0] if ids else None
         except Exception:
             out["result"] = "回應非 JSON (可能 API Key 錯誤或網址錯誤)"
             out["body_preview"] = r.text[:500]
