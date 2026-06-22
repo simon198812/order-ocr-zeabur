@@ -770,8 +770,10 @@ def ragic_test_write(ragic_po: Optional[str] = None, customer_code: Optional[str
                 out["ok"] = True
                 out["ragic_id"] = rid
                 out["view_url"] = f"{_ragic_url()}/{rid}"
-                out["message"] = f"✅ 寫入成功 (ragic_id={rid})！請去 Ragic 訂單總單看這筆並刪除"
-                # 立刻讀回 record 看載入欄位是否被自動填 (診斷 Ragic API 寫入時連結載入行為)
+                # 觸發 Ragic 重算載入欄位 (跟主流程相同的修法)
+                _ragic_trigger_link_reload(rid, payload)
+                out["message"] = f"✅ 寫入成功 (ragic_id={rid})，已觸發載入欄位重算"
+                # 立刻讀回 record 看載入欄位是否被自動填
                 try:
                     vr = requests.get(
                         f"{_ragic_url()}/{rid}?api&naming=EID",
