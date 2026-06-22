@@ -178,27 +178,33 @@ async function loadCustomers() {
   }
 }
 
-// 模糊比對 OCR hospital → 客戶清單，找最匹配的客戶編號 (空字串=找不到)
-function guessCustomerCode(hospital) {
-  if (!hospital || !customerList.length) return '';
-  const h = String(hospital).trim();
-  if (!h) return '';
+// 模糊比對單一字串 → 客戶清單，找最匹配的客戶編號 (空字串=找不到)
+function matchCustomerByText(text) {
+  if (!text || !customerList.length) return '';
+  const t = String(text).trim();
+  if (!t) return '';
   // 1. 完整名稱完全相等
-  let m = customerList.find(c => c.name === h);
+  let m = customerList.find(c => c.name === t);
   if (m) return m.code;
   // 2. 簡稱完全相等
-  m = customerList.find(c => c.short_name === h);
+  m = customerList.find(c => c.short_name === t);
   if (m) return m.code;
-  // 3. hospital 包含簡稱 (例如「林新醫療社團法人林新醫院」包含「林新醫院」)
-  m = customerList.find(c => c.short_name && h.includes(c.short_name));
+  // 3. 輸入字串包含簡稱 (例如「3F 麻醉科 林新醫院」包含「林新醫院」)
+  m = customerList.find(c => c.short_name && t.includes(c.short_name));
   if (m) return m.code;
-  // 4. hospital 包含完整名稱片段 (反向)
-  m = customerList.find(c => c.name && h.includes(c.name));
+  // 4. 輸入字串包含完整名稱
+  m = customerList.find(c => c.name && t.includes(c.name));
   if (m) return m.code;
-  // 5. 客戶簡稱包含 hospital (反向，hospital 較短時)
-  m = customerList.find(c => c.short_name && c.short_name.includes(h));
+  // 5. 客戶簡稱包含輸入字串 (輸入較短時)
+  m = customerList.find(c => c.short_name && c.short_name.includes(t));
   if (m) return m.code;
   return '';
+}
+
+// 根據 OCR 結果猜客戶編號：loc (交貨地點) 優先，找不到才用 hospital fallback
+function guessCustomerCode(order) {
+  if (!order) return '';
+  return matchCustomerByText(order.loc) || matchCustomerByText(order.hospital);
 }
 
 function findCustomer(code) {
@@ -406,7 +412,7 @@ function displayResults(resultsData, showSubmit) {
       orders.forEach(o => {
         if (o.ragic_po === undefined) o.ragic_po = '';
         if (o.ragic_customer_code === undefined) {
-          o.ragic_customer_code = guessCustomerCode(o.hospital);
+          o.ragic_customer_code = guessCustomerCode(o);
         }
         const c = findCustomer(o.ragic_customer_code);
         o.ragic_customer_category = c ? c.category : '';
