@@ -393,15 +393,17 @@ def _extract_record_ids(data) -> list[str]:
     return [str(k) for k in data.keys() if str(k).isdigit()]
 
 def _ragic_check_duplicate(po_no: str) -> Optional[str]:
-    """查 Ragic 1000320 (訂單編號) 是否已有同值 record；存在回 record_id；查詢失敗回 None。
+    """查 Ragic 1000398 (訂單號碼客戶=醫院 po_no) 是否已有同值 record。
 
-    雙重驗證：除了 where 篩選，還比對 record 實際 1000320 值是否等於 po_no，
-    避免 Ragic where 偶爾沒生效時誤判為重複。
+    使用者 Ragic 設定：
+    - 1000320 訂單編號 = 可重複 (使用者批次號)
+    - 1000398 訂單號碼(客戶) = 唯一 (識別一張訂單的鍵)
+    所以重複偵測查 1000398，傳入值是 OCR 抓的 po_no。
     """
     if not po_no:
         return None
     encoded_po = requests.utils.quote(str(po_no), safe='')
-    url = f"{_ragic_url()}?api&naming=EID&subtables=0&limit=0,5&where=1000320,eq,{encoded_po}"
+    url = f"{_ragic_url()}?api&naming=EID&subtables=0&limit=0,5&where=1000398,eq,{encoded_po}"
     try:
         r = requests.get(url, headers=_ragic_headers(), timeout=15)
         r.raise_for_status()
@@ -414,7 +416,7 @@ def _ragic_check_duplicate(po_no: str) -> Optional[str]:
     for rid, rec in data.items():
         if not str(rid).isdigit() or not isinstance(rec, dict):
             continue
-        stored = str(rec.get("1000320", "") or "").strip()
+        stored = str(rec.get("1000398", "") or "").strip()
         if stored == target:
             return str(rid)
     return None
@@ -566,16 +568,17 @@ def write_orders_to_ragic(orders: list[dict]) -> dict:
     groups = _group_orders_by_po(orders)
 
     for po_no, items in groups.items():
-        # Ragic 主表 1000320 用 ragic_po；重複偵測也用它
+        # Ragic 主表 1000320 = ragic_po (可重複)；1000398 = po_no (唯一)
+        # 重複偵測查 1000398 == po_no
         ragic_po = _pick_ragic_po(items, fallback=po_no)
-        existing = _ragic_check_duplicate(ragic_po)
+        existing = _ragic_check_duplicate(po_no)
         if existing:
             summary["skipped"] += 1
             view_url = f"{_ragic_url()}/{existing}"
             results.append({"po_no": po_no, "ragic_po": ragic_po, "status": "skipped",
                             "items": len(items), "ragic_id": existing,
                             "view_url": view_url,
-                            "message": f"Ragic 已存在 (record_id={existing})"})
+                            "message": f"Ragic 已存在同訂單號碼 (record_id={existing})"})
             continue
         res = _ragic_create_order(po_no, items)
         res["ragic_po"] = ragic_po
@@ -633,14 +636,14 @@ def _api_key_fingerprint(k: str) -> dict:
 
 @app.get("/ragic/check-dup", dependencies=[Depends(require_auth)])
 def ragic_check_dup(po: str):
-    """診斷重複偵測：傳訂單編號，回傳 Ragic 實際回的紀錄 + 每筆 1000320 是否真匹配。
-    用來看 Ragic where 篩選有沒有生效。"""
-    out = {"query_po": po}
+    """診斷重複偵測：傳訂單號碼 (對應 1000398，OCR 抓的 po_no)，
+    回傳 Ragic 實際匹配的紀錄。1000398 才是唯一鍵；1000320 可重複。"""
+    out = {"query_po": po, "field_checked": "1000398 (訂單號碼客戶)"}
     if not RAGIC_ENABLED or not RAGIC_API_KEY:
         out["error"] = "Ragic 未啟用或未設定 API Key"
         return out
     encoded_po = requests.utils.quote(str(po), safe='')
-    url = f"{_ragic_url()}?api&naming=EID&subtables=0&limit=0,5&where=1000320,eq,{encoded_po}"
+    url = f"{_ragic_url()}?api&naming=EID&subtables=0&limit=0,5&where=1000398,eq,{encoded_po}"
     out["url"] = url
     try:
         r = requests.get(url, headers=_ragic_headers(), timeout=15)
@@ -662,10 +665,10 @@ def ragic_check_dup(po: str):
         for rid, rec in data.items():
             if not str(rid).isdigit() or not isinstance(rec, dict):
                 continue
-            stored = str(rec.get("1000320", "") or "").strip()
+            stored = str(rec.get("1000398", "") or "").strip()
             samples.append({
                 "record_id": str(rid),
-                "stored_1000320": stored,
+                "stored_1000398": stored,
                 "matches_query": stored == target,
             })
             if stored == target and not matched_id:
