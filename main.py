@@ -558,9 +558,11 @@ def write_orders_to_ragic(orders: list[dict]) -> dict:
         existing = _ragic_check_duplicate(ragic_po)
         if existing:
             summary["skipped"] += 1
+            view_url = f"{_ragic_url()}/{existing}"
             results.append({"po_no": po_no, "ragic_po": ragic_po, "status": "skipped",
                             "items": len(items), "ragic_id": existing,
-                            "message": "Ragic 已存在同訂單編號"})
+                            "view_url": view_url,
+                            "message": f"Ragic 已存在 (record_id={existing})"})
             continue
         res = _ragic_create_order(po_no, items)
         res["ragic_po"] = ragic_po
@@ -615,6 +617,35 @@ def _api_key_fingerprint(k: str) -> dict:
         "has_control_char": has_ctrl,
         "has_whitespace": has_space,
     }
+
+@app.get("/ragic/check-dup", dependencies=[Depends(require_auth)])
+def ragic_check_dup(po: str):
+    """測試重複偵測：傳訂單編號，回傳是否真的存在 + Ragic 原始回應 keys。"""
+    out = {"query_po": po}
+    if not RAGIC_ENABLED or not RAGIC_API_KEY:
+        out["error"] = "Ragic 未啟用或未設定 API Key"
+        return out
+    url = f"{_ragic_url()}?api&naming=EID&listing=true&subtables=0&where=1000320,eq,{po}"
+    out["url"] = url
+    try:
+        r = requests.get(url, headers=_ragic_headers(), timeout=15)
+        out["http_status"] = r.status_code
+        try:
+            data = r.json()
+        except Exception:
+            out["error"] = "回應非 JSON"
+            out["body_preview"] = r.text[:300]
+            return out
+        if isinstance(data, dict):
+            out["response_top_keys"] = list(data.keys())[:20]
+        ids = _extract_record_ids(data)
+        out["found_record_ids"] = ids
+        out["decision"] = "exists" if ids else "not_exists"
+        if ids:
+            out["view_url"] = f"{_ragic_url()}/{ids[0]}"
+    except Exception as e:
+        out["error"] = f"{type(e).__name__}: {e}"
+    return out
 
 @app.get("/ragic/customers", dependencies=[Depends(require_auth)])
 def ragic_customers(refresh: int = 0):

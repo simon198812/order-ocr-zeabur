@@ -399,9 +399,11 @@ function formatRagicResultMsg(d) {
     const lines = d.ragic.results.map(r => {
       const tag = r.status === 'success' ? '✓' : (r.status === 'skipped' ? '○' : '✗');
       const extra = r.message ? ` — ${r.message}` : '';
-      return `   ${tag} ${r.po_no} (${r.items} 品項)${extra}`;
+      const link = r.view_url ? `\n      ${r.view_url}` : '';
+      return `   ${tag} ${r.po_no} (${r.items} 品項)${extra}${link}`;
     });
     msg += '\n' + lines.join('\n');
+    msg += '\n\n💡 點擊跳過的紀錄連結可確認是否真的是同一筆訂單。';
   }
   return msg;
 }
