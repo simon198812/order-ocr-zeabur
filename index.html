@@ -96,6 +96,8 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 
     <div class="results" id="results"></div>
     <div id="ragicSummary"></div>
+    <!-- 共用客戶清單，給所有 ragic_customer_code 輸入框搜尋 -->
+    <datalist id="customersDatalist"></datalist>
   </div>
 </div>
 
@@ -172,10 +174,32 @@ async function loadCustomers() {
     if (!r.ok) return;
     const d = await r.json();
     customerList = d.customers || [];
+    populateCustomerDatalist();
     console.log(`Loaded ${customerList.length} Ragic customers`);
   } catch(e) {
     console.warn('載入客戶清單失敗:', e);
   }
+}
+
+// 客戶顯示字串格式：「35 林新醫院 (醫院)」— 編號開頭方便解析、簡稱+類別方便搜尋
+function customerDisplay(c) {
+  return `${c.code} ${c.short_name || c.name} (${c.category || '?'})`;
+}
+
+// 從 input 字串開頭取客戶編號 (例如「35 林新醫院 (醫院)」→「35」)
+function parseCustomerCode(text) {
+  if (!text) return '';
+  const m = String(text).trim().match(/^(\S+)/);
+  return m ? m[1] : '';
+}
+
+function populateCustomerDatalist() {
+  const dl = $('customersDatalist');
+  if (!dl) return;
+  dl.innerHTML = customerList.map(c => {
+    const v = customerDisplay(c).replace(/"/g,'&quot;');
+    return `<option value="${v}">`;
+  }).join('');
 }
 
 // 模糊比對單一字串 → 客戶清單，找最匹配的客戶編號 (空字串=找不到)
@@ -270,12 +294,18 @@ function collectEdits() {
     const idx = parseInt(input.dataset.orderIdx);
     const field = input.dataset.field;
     const val = input.value.trim();
-    if (pendingOrders[idx]) {
-      if (['qty', 'price', 'total', 'order_total', 'warranty'].includes(field)) {
-        pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
-      } else {
-        pendingOrders[idx][field] = val;
-      }
+    if (!pendingOrders[idx]) return;
+
+    if (field === 'ragic_customer_code') {
+      // 從顯示字串「35 林新醫院 (醫院)」解析出客戶編號
+      const code = parseCustomerCode(val);
+      const customer = findCustomer(code);
+      pendingOrders[idx].ragic_customer_code = customer ? code : '';
+      pendingOrders[idx].ragic_customer_category = customer ? customer.category : '';
+    } else if (['qty', 'price', 'total', 'order_total', 'warranty'].includes(field)) {
+      pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
+    } else {
+      pendingOrders[idx][field] = val;
     }
   });
 }
@@ -286,7 +316,17 @@ function validateRequired() {
   const missing = [];
   document.querySelectorAll('.editable-field').forEach(input => {
     const field = input.dataset.field;
-    if (REQUIRED_FOR_RAGIC.includes(field) && !input.value.trim()) {
+    if (!REQUIRED_FOR_RAGIC.includes(field)) return;
+    const val = String(input.value).trim();
+    let invalid = false;
+    if (field === 'ragic_customer_code') {
+      // 必須能對應到客戶清單，不只是非空字串
+      const code = parseCustomerCode(val);
+      if (!findCustomer(code)) invalid = true;
+    } else {
+      if (!val) invalid = true;
+    }
+    if (invalid) {
       input.classList.add('is-invalid');
       missing.push({field, input});
     }
@@ -430,22 +470,21 @@ function displayResults(resultsData, showSubmit) {
           const label = FIELD_LABELS[k] || k;
 
           if (k === 'ragic_customer_code') {
-            // 客戶下拉：渲染 select，options 來自 customerList
+            // 客戶可搜尋輸入：input + datalist，使用者可打「林新」或「35」過濾
             const curCode = String(val);
-            let opts = `<option value="">— 請選擇客戶 —</option>`;
-            customerList.forEach(c => {
-              const sel = c.code === curCode ? ' selected' : '';
-              const display = `${c.code} ${c.short_name || c.name} (${c.category || '?'})`;
-              opts += `<option value="${c.code}"${sel}>${display.replace(/</g,'&lt;')}</option>`;
-            });
             const matched = findCustomer(curCode);
+            const inputVal = matched ? customerDisplay(matched) : curCode;
             const taxHint = matched
               ? `<span style="color:#666;font-size:.78rem;margin-left:8px">→ 類別 ${matched.category}，營業稅 ${matched.category==='醫院'?'0%':'5%'}</span>`
-              : (curCode ? `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ 客戶清單找不到 ${curCode}</span>` : '');
+              : (curCode ? `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ 找不到客戶 "${curCode}"</span>` : '');
+            const inputCls = (!matched ? 'is-empty' : '');
             ordersHTML += `<div class="field-row">
               <span class="order-label">${label}:</span>
-              <select class="editable-field${isEmpty ? ' is-empty' : ''}"
-                      data-order-idx="${globalIdx}" data-field="${k}">${opts}</select>
+              <input type="text" class="editable-field ${inputCls}"
+                     list="customersDatalist"
+                     value="${String(inputVal).replace(/"/g,'&quot;')}"
+                     data-order-idx="${globalIdx}" data-field="${k}"
+                     placeholder="輸入編號 / 簡稱 / 名稱搜尋 (例: 林新、35)">
               ${taxHint}
             </div>`;
           } else {
@@ -496,17 +535,19 @@ function displayResults(resultsData, showSubmit) {
         });
       }
 
-      // ragic_customer_code: 自動更新對應的 ragic_customer_category (給後端用)
+      // ragic_customer_code: 解析顯示字串成編號 + 自動更新對應的 ragic_customer_category
       if (field === 'ragic_customer_code') {
-        const matched = findCustomer(newVal);
+        const code = parseCustomerCode(newVal);
+        const matched = findCustomer(code);
         const newCat = matched ? matched.category : '';
+        pendingOrders[idx].ragic_customer_code = matched ? code : '';
         pendingOrders[idx].ragic_customer_category = newCat;
-        // 同 po_no 群組 category 也同步
+        // 同 po_no 群組同步 (pendingOrders 中存編號，DOM 中存顯示字串)
         if (myPo) {
           pendingOrders.forEach((o, i) => {
             if (i !== idx && (o.po_no || '').trim() === myPo) {
+              o.ragic_customer_code = matched ? code : '';
               o.ragic_customer_category = newCat;
-              o.ragic_customer_code = newVal;
             }
           });
         }
