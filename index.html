@@ -394,6 +394,7 @@ function formatRagicResultMsg(d) {
   if (!d.ragic.configured) { msg += '📋 Ragic: 未設定 API Key，已跳過'; return msg; }
   const s = d.ragic.summary;
   msg += `📋 Ragic 結果：新增 ${s.success} 筆、跳過 ${s.skipped} 筆、失敗 ${s.error} 筆`;
+  if (typeof s.attachments === 'number') msg += `；附件上傳 ${s.attachments} 個`;
   if (s.no_po) msg += `\n   (有 ${s.no_po} 筆品項缺訂單號，未送 Ragic)`;
   if (d.ragic.results && d.ragic.results.length) {
     const lines = d.ragic.results.map(r => {
@@ -430,7 +431,11 @@ $('submitBtn').addEventListener('click', async () => {
   $('submitBtn').disabled=true;
   $('submitBtn').innerHTML='<span class="loading"></span>寫入中...';
   try {
-    const r = await fetch('/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orders:pendingOrders})});
+    // multipart/form-data: orders JSON + 原始檔案 (Ragic 附件上傳用)
+    const fd = new FormData();
+    fd.append('orders', JSON.stringify(pendingOrders));
+    selectedFiles.forEach(f => fd.append('files', f, f.name));
+    const r = await fetch('/submit', {method:'POST', body: fd});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     alert(formatRagicResultMsg(d));

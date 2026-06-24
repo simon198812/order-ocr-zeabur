@@ -26,7 +26,7 @@ from functools import lru_cache
 from typing import Optional
 
 import requests
-from fastapi import FastAPI, File, UploadFile, HTTPException, Request, Depends, Cookie, Response
+from fastapi import FastAPI, File, Form, UploadFile, HTTPException, Request, Depends, Cookie, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -474,6 +474,7 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         "1002403": _map_vendor_to_company(head.get("vendor", "")),  # 公司 (單選)
         "1000320": ragic_po,                                        # 訂單編號 (使用者手填)
         "1000322": _minguo_to_western(head.get("date", "")),        # 訂單日期 (必填)
+        "1007107": _minguo_to_western(head.get("deadline", "")),    # 交貨期限 (OCR deadline)
         "1000319": cust_code,                                       # 客戶編號 (連結欄位，必填)
         "1000654": tax_rate,                                        # 營業稅(選%) (必填)
         "1000398": po_no,                                           # 訂單號碼(客戶) — 醫院 po_no
@@ -548,6 +549,38 @@ def _ragic_create_order(po_no: str, items: list[dict]) -> dict:
         return {"po_no": po_no, "status": "error", "items": len(items),
                 "message": f"{type(e).__name__}: {e}"}
 
+def _ragic_upload_attachment(ragic_id, filename: str, file_bytes: bytes,
+                             field_id: str = "1007106", mime: str = "application/pdf") -> bool:
+    """上傳檔案到 Ragic record 的檔案欄位。best-effort，失敗不擋主流程。"""
+    if not ragic_id or not file_bytes or not filename:
+        return False
+    url = f"{_ragic_url()}/{ragic_id}?api"
+    # multipart/form-data: requests 會自動加 boundary，不能手動設 Content-Type
+    headers = _ragic_headers()
+    files = {field_id: (filename, file_bytes, mime)}
+    try:
+        r = requests.post(url, files=files, headers=headers, timeout=60)
+        if r.status_code != 200:
+            return False
+        try:
+            body = r.json()
+            return body.get("status") == "SUCCESS"
+        except Exception:
+            return False
+    except Exception:
+        return False
+
+def _guess_mime(filename: str) -> str:
+    ext = os.path.splitext(filename or "")[1].lower()
+    return {
+        ".pdf": "application/pdf",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+        ".bmp": "image/bmp",
+    }.get(ext, "application/octet-stream")
+
 def _ragic_trigger_link_reload(ragic_id, payload: dict):
     """寫入連結欄位後，發第二次 POST 更新同 record_id 觸發 Ragic 重新計算載入欄位。
     失敗也不影響主寫入結果 (best-effort)。"""
@@ -618,9 +651,10 @@ def _pick_ragic_po(items: list[dict], fallback: str) -> str:
             return v
     return fallback
 
-def write_orders_to_ragic(orders: list[dict]) -> dict:
-    """主入口：分組 → 重複偵測 → 寫入。永遠回傳結果結構，不丟例外。"""
-    summary = {"success": 0, "skipped": 0, "error": 0, "no_po": 0}
+def write_orders_to_ragic(orders: list[dict], file_map: dict = None) -> dict:
+    """主入口：分組 → 重複偵測 → 寫入主表 → (有檔案的話) 上傳附件。
+    file_map: {filename: bytes}，根據 order._filename 找對應檔案上傳。"""
+    summary = {"success": 0, "skipped": 0, "error": 0, "no_po": 0, "attachments": 0}
     results: list[dict] = []
     if not RAGIC_ENABLED:
         return {"enabled": False, "configured": False, "results": results, "summary": summary}
@@ -630,10 +664,9 @@ def write_orders_to_ragic(orders: list[dict]) -> dict:
 
     summary["no_po"] = sum(1 for o in orders if not str(o.get("po_no") or "").strip())
     groups = _group_orders_by_po(orders)
+    file_map = file_map or {}
 
     for po_no, items in groups.items():
-        # Ragic 主表 1000320 = ragic_po (可重複)；1000398 = po_no (唯一)
-        # 重複偵測查 1000398 == po_no
         ragic_po = _pick_ragic_po(items, fallback=po_no)
         existing = _ragic_check_duplicate(po_no)
         if existing:
@@ -646,6 +679,24 @@ def write_orders_to_ragic(orders: list[dict]) -> dict:
             continue
         res = _ragic_create_order(po_no, items)
         res["ragic_po"] = ragic_po
+
+        # 寫入成功且有原始檔案 → 上傳附件到 1007106
+        if res.get("status") == "success" and file_map:
+            src_filename = next(
+                (it.get("_filename") for it in items if it.get("_filename")),
+                None,
+            )
+            if src_filename and src_filename in file_map:
+                ok = _ragic_upload_attachment(
+                    res["ragic_id"], src_filename, file_map[src_filename],
+                    field_id="1007106", mime=_guess_mime(src_filename),
+                )
+                if ok:
+                    summary["attachments"] += 1
+                    res["attachment"] = src_filename
+                else:
+                    res["attachment_error"] = "上傳失敗"
+
         results.append(res)
         if res.get("status") == "success":
             summary["success"] += 1
@@ -922,7 +973,7 @@ def auth_status(session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
 
 @app.post("/preview", dependencies=[Depends(require_auth)])
 async def preview(files: list[UploadFile] = File(...)):
-    """只做 OCR,不寫入 Sheet"""
+    """只做 OCR,不寫入 Sheet。每筆 order 附 _filename 方便 /submit 對應檔案。"""
     files = sorted(files, key=_natural_sort_key)
     results = []
     for file in files:
@@ -931,6 +982,9 @@ async def preview(files: list[UploadFile] = File(...)):
             if len(content) > 20 * 1024 * 1024:
                 raise ValueError("檔案超過 20MB")
             orders = extract_orders_from_file(content, file.filename)
+            # 標記每筆 order 的來源檔案，submit 時用來找對應的 PDF 上傳到 Ragic
+            for o in orders:
+                o["_filename"] = file.filename
             results.append({
                 "filename": file.filename,
                 "status": "success",
@@ -946,34 +1000,50 @@ async def preview(files: list[UploadFile] = File(...)):
     return {"results": results}
 
 @app.post("/submit", dependencies=[Depends(require_auth)])
-async def submit(request: Request):
-    """把預覽確認的資料寫入 Sheet → 再寫入 Ragic (Ragic 失敗不擋)"""
+async def submit(
+    orders: str = Form(...),
+    files: list[UploadFile] = File(default=[]),
+):
+    """把預覽確認的資料寫入 Sheet → 再寫入 Ragic (含附件)。
+    multipart/form-data: orders 欄位放 JSON 字串、files 放原始檔案 (可選)。"""
     try:
-        body = await request.json()
-        orders = body.get("orders", [])
+        orders_data = json.loads(orders)
     except Exception:
-        raise HTTPException(status_code=400, detail="無效的 JSON")
-    if not orders:
+        raise HTTPException(status_code=400, detail="orders 欄位不是有效 JSON")
+    if not orders_data:
         raise HTTPException(status_code=400, detail="沒有資料可寫入")
+
+    # 收集檔案內容 (filename → bytes) 給 Ragic 附件上傳用
+    file_map = {}
+    for f in files:
+        try:
+            file_map[f.filename] = await f.read()
+        except Exception:
+            pass
+
     try:
-        n = batch_write_to_sheet(orders)
+        n = batch_write_to_sheet(orders_data)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"寫入 Sheet 失敗: {e}")
-    ragic = write_orders_to_ragic(orders)
+    ragic = write_orders_to_ragic(orders_data, file_map=file_map)
     return {"ok": True, "rows_written": n, "ragic": ragic}
 
 @app.post("/upload", dependencies=[Depends(require_auth)])
 async def upload_and_submit(files: list[UploadFile] = File(...)):
-    """一步完成: OCR + 立即寫入"""
+    """一步完成: OCR + 立即寫入 (含 Ragic 附件)"""
     files = sorted(files, key=_natural_sort_key)
     all_orders = []
     results = []
+    file_map = {}
     for file in files:
         try:
             content = await file.read()
             if len(content) > 20 * 1024 * 1024:
                 raise ValueError("檔案超過 20MB")
+            file_map[file.filename] = content
             orders = extract_orders_from_file(content, file.filename)
+            for o in orders:
+                o["_filename"] = file.filename
             all_orders.extend(orders)
             results.append({
                 "filename": file.filename,
@@ -997,7 +1067,7 @@ async def upload_and_submit(files: list[UploadFile] = File(...)):
                 status_code=500,
                 content={"results": results, "error": f"寫入 Sheet 失敗: {e}"},
             )
-        ragic = write_orders_to_ragic(all_orders)
+        ragic = write_orders_to_ragic(all_orders, file_map=file_map)
     return {"results": results, "rows_written": rows_written, "ragic": ragic}
 
 # ------------------- 靜態檔案 -------------------
