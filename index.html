@@ -108,6 +108,26 @@ let customerList = [];  // Ragic 客戶清單 [{code, name, short_name, category
 // Ragic 寫入必填：ragic_po + date + ragic_customer_code (客戶編號)
 const REQUIRED_FOR_RAGIC = ['ragic_po', 'date', 'ragic_customer_code'];
 
+// 廠商固定三家 + 常見 OCR 誤識別字容錯
+const VENDOR_OPTIONS = [
+  { value: '長洲醫療儀器有限公司', keywords: ['長洲','長州','长洲','长州'], firstChar: ['長','长'] },
+  { value: '尚鋒工業有限公司',     keywords: ['尚鋒','尚峰','尚锋'],       firstChar: ['尚'] },
+  { value: '靖展有限公司',         keywords: ['靖展','靖晨','静展','静晨'], firstChar: ['靖','静'] },
+];
+
+function guessVendor(text) {
+  if (!text) return '';
+  const s = String(text);
+  for (const opt of VENDOR_OPTIONS) {
+    if (opt.keywords.some(k => s.includes(k))) return opt.value;
+  }
+  // 首字 fallback (處理更嚴重的誤識別，例如「尚〇工業」)
+  for (const opt of VENDOR_OPTIONS) {
+    if (opt.firstChar.some(c => s.includes(c))) return opt.value;
+  }
+  return '';
+}
+
 // 欄位中文對照表
 const FIELD_LABELS = {
   ragic_po:           '🟧 Ragic 訂單編號 (手動填)',
@@ -115,7 +135,7 @@ const FIELD_LABELS = {
   hospital:           '客戶名稱(醫院)',
   date:         '訂購日期',
   deadline:     '交貨期限/預計到貨日',
-  vendor:       '廠商名稱',
+  vendor:       '🟩 廠商名稱 (3 選 1)',
   loc:          '交貨地點',
   type:         '訂單類型',
   material_id:  '資材代碼',
@@ -460,6 +480,7 @@ function displayResults(resultsData, showSubmit) {
     } else {
       const orders = r.orders||[];
       // 初始化新欄位：ragic_po 預設空、ragic_customer_code 預設用 hospital 模糊匹配
+      // vendor 用 3 選項標準化 (含 OCR 誤識別容錯)
       orders.forEach(o => {
         if (o.ragic_po === undefined) o.ragic_po = '';
         if (o.ragic_customer_code === undefined) {
@@ -467,6 +488,9 @@ function displayResults(resultsData, showSubmit) {
         }
         const c = findCustomer(o.ragic_customer_code);
         o.ragic_customer_category = c ? c.category : '';
+        // 廠商標準化：OCR 抓的字串 → 三個固定選項之一 (找不到就留 OCR 原文讓使用者選)
+        const guessedVendor = guessVendor(o.vendor);
+        if (guessedVendor) o.vendor = guessedVendor;
       });
       pendingOrders.push(...orders);
 
@@ -497,6 +521,25 @@ function displayResults(resultsData, showSubmit) {
                      data-order-idx="${globalIdx}" data-field="${k}"
                      placeholder="輸入編號 / 簡稱 / 名稱搜尋 (例: 林新、35)">
               ${taxHint}
+            </div>`;
+          } else if (k === 'vendor') {
+            // 廠商 3 選 1 下拉
+            const curVal = String(val);
+            const isMatched = VENDOR_OPTIONS.some(opt => opt.value === curVal);
+            let opts = `<option value="">— 請選廠商 —</option>`;
+            VENDOR_OPTIONS.forEach(opt => {
+              const sel = opt.value === curVal ? ' selected' : '';
+              opts += `<option value="${opt.value}"${sel}>${opt.value}</option>`;
+            });
+            const inputCls = (!isMatched ? 'is-empty' : '');
+            const hint = (curVal && !isMatched)
+              ? `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ OCR 抓到「${curVal}」對不到 3 家，請手動選</span>`
+              : '';
+            ordersHTML += `<div class="field-row">
+              <span class="order-label">${label}:</span>
+              <select class="editable-field ${inputCls}"
+                      data-order-idx="${globalIdx}" data-field="${k}">${opts}</select>
+              ${hint}
             </div>`;
           } else {
             ordersHTML += `<div class="field-row">
@@ -532,8 +575,8 @@ function displayResults(resultsData, showSubmit) {
       const myPo = (pendingOrders[idx]?.po_no || '').trim();
       const newVal = input.value;
 
-      // ragic_po / ragic_customer_code: 同 po_no 群組內自動同步
-      if ((field === 'ragic_po' || field === 'ragic_customer_code') && myPo) {
+      // ragic_po / ragic_customer_code / vendor: 同 po_no 群組內自動同步
+      if ((field === 'ragic_po' || field === 'ragic_customer_code' || field === 'vendor') && myPo) {
         document.querySelectorAll(`.editable-field[data-field="${field}"]`).forEach(other => {
           if (other === input) return;
           const otherIdx = parseInt(other.dataset.orderIdx);
@@ -542,6 +585,8 @@ function displayResults(resultsData, showSubmit) {
             other.value = newVal;
             if (String(newVal).trim()) other.classList.remove('is-empty', 'is-invalid');
             else other.classList.add('is-empty');
+            // 同步 pendingOrders 對應欄位 (供 collectEdits 使用)
+            if (pendingOrders[otherIdx]) pendingOrders[otherIdx][field] = newVal;
           }
         });
       }
