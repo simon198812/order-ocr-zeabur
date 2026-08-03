@@ -83,18 +83,21 @@ PROMPT = """你是醫院訂購單資料萃取助手。請仔細分析這份訂�
 欄位格式規則（請嚴格遵守）:
 - po_no (訂單號): 固定格式為大寫字母 M 開頭 + 9 位數字,共 10 碼,例如 M123456789
   圖片中可能因換行或空格拆成兩行,請合併為完整值。若找不到符合格式,填 ""
-- ext (分機): 純數字 4~5 碼,專指「申購人本人」的分機
+- ext (分機/聯絡電話): 專指「申購人本人」的聯絡方式，可能為以下三種格式之一：
+  A. 4~6 碼純數字分機 (例如 1698、16895、160892)
+  B. 台灣手機號碼 10 碼 09xxxxxxxx (例如 0912345678)
+  C. 手機可能出現「-」或空白 (例如 0912-345-678、0912 345 678)，全部去掉只留數字
 
-⚠️ 訂單常出現多個分機,請只抓申購人的,排除以下:
+⚠️ 訂單常出現多個聯絡方式,請只抓申購人的,排除以下:
   - 採購人員分機 (例如「再聯絡採購人員XXX分機:14738」)
   - 職安室/廠商安全分機 (例如「分機4104~4105」)
 
 抓取步驟:
   STEP 1: 鎖定「申購人:XXX」這個人名
-  STEP 2: 從申購人附近找「分機:」「分機號碼:」標籤
-  STEP 3: 標籤同行有 4~5 碼數字 → 採用
+  STEP 2: 從申購人附近找「分機:」「分機號碼:」「電話:」「手機:」標籤
+  STEP 3: 標籤同行有 4~6 碼數字 或 10 碼 09xx 手機 → 採用
   STEP 4: ⚠️ 標籤同行只有空白或冒號 →
-          往「下一行的開頭」找第一個 4~5 碼數字
+          往「下一行的開頭」找第一個 4~6 碼分機或 10 碼手機
           (常見排版,例如「分機:[換行]16895」)
   STEP 5: 整個申購人區域都找不到 → 才填 ""
 - 金額欄位 (price, total): 只填數字,不含貨幣符號 ($ NT 等)
@@ -187,11 +190,20 @@ def _clean_po_no(v):
     return m.group(0).upper() if m else ''
 
 def _clean_ext(v):
-    """分機: 4~5位純數字，處理換行拆分"""
-    d = re.sub(r'\D', '', str(v))
-    if re.fullmatch(r'\d{4,5}', d):
+    """分機/聯絡電話：優先手機 (10 碼 09xx)，其次 4~6 碼分機。處理換行拆分。"""
+    s = str(v or '')
+    # 移除空白、破折號、括號等雜訊
+    compact = re.sub(r'[\s\-\(\)（）]+', '', s)
+    # 1. 台灣手機 09xxxxxxxx (10 碼) 優先
+    m = re.search(r'09\d{8}', compact)
+    if m:
+        return m.group(0)
+    # 2. 純數字判斷 4~6 碼
+    d = re.sub(r'\D', '', s)
+    if re.fullmatch(r'\d{4,6}', d):
         return d
-    m = re.search(r'\d{4,5}', re.sub(r'\s+', '', str(v)))
+    # 3. fallback：找 4~6 碼數字片段（貪婪，優先長的）
+    m = re.search(r'\d{4,6}', compact)
     return m.group(0) if m else ''
 
 def _clean_order(o):
@@ -328,18 +340,32 @@ def batch_write_to_sheet(orders: list[dict]) -> int:
 
 # ------------------- Ragic 整合 -------------------
 # vendor 名稱關鍵字 → 公司單選值 (Ragic 1002403)
+# 含常見 OCR 誤識別字，例如「長州」是「長洲」的誤識、「靖晨」是「靖展」誤識
 _VENDOR_TO_COMPANY = [
-    ("尚鋒", "2 尚鋒"),
-    ("長洲", "1 長洲"),
-    ("靖展", "3 靖展"),
+    ("2 尚鋒", ["尚鋒", "尚峰", "尚锋"]),
+    ("1 長洲", ["長洲", "長州", "长洲", "长州"]),
+    ("3 靖展", ["靖展", "靖晨", "静展", "静晨"]),
+]
+# 首字 fallback：三家公司名首字都獨特
+_VENDOR_FALLBACK = [
+    ("2 尚鋒", "尚"),
+    ("1 長洲", "長"),  # 亦包含「长」
+    ("1 長洲", "长"),
+    ("3 靖展", "靖"),
+    ("3 靖展", "静"),
 ]
 
 def _map_vendor_to_company(vendor: str) -> str:
     if not vendor:
         return ""
     s = str(vendor)
-    for kw, val in _VENDOR_TO_COMPANY:
-        if kw in s:
+    for val, kws in _VENDOR_TO_COMPANY:
+        for kw in kws:
+            if kw in s:
+                return val
+    # fallback：找首字（處理更嚴重的 OCR 錯字，例如「尚〇工業」）
+    for val, first_char in _VENDOR_FALLBACK:
+        if first_char in s:
             return val
     return ""
 
