@@ -712,6 +712,52 @@ def _ragic_load_products() -> list:
     products.sort(key=lambda p: p["name"])
     return products
 
+@lru_cache(maxsize=1)
+def _ragic_load_order_history() -> dict:
+    """從訂單總單抓歷史紀錄，建立「客戶編號 → 曾訂購過的品名次數」對照表。
+    用來讓商品比對優先推薦該客戶買過的品項。
+    回傳 {客戶編號: {品名: 次數}}。"""
+    if not RAGIC_API_KEY:
+        return {}
+    history: dict = {}
+    # 分頁抓全部訂單 (含子表 1000341 訂購項目)
+    page, page_size, max_pages = 0, 1000, 20
+    while page < max_pages:
+        url = (
+            f"{_ragic_url()}?api&naming=EID"
+            f"&limit={page * page_size},{page_size}"
+        )
+        try:
+            r = requests.get(url, headers=_ragic_headers(), timeout=60)
+            r.raise_for_status()
+            data = r.json()
+        except Exception:
+            break
+        if not isinstance(data, dict):
+            break
+        rows = 0
+        for rid, rec in data.items():
+            if not str(rid).isdigit() or not isinstance(rec, dict):
+                continue
+            rows += 1
+            cust = str(rec.get("1000319", "") or "").strip()
+            if not cust:
+                continue
+            sub = rec.get("_subtable_1000341") or {}
+            if not isinstance(sub, dict):
+                continue
+            bucket = history.setdefault(cust, {})
+            for _, line in sub.items():
+                if not isinstance(line, dict):
+                    continue
+                pname = str(line.get("1000332", "") or "").strip()
+                if pname:
+                    bucket[pname] = bucket.get(pname, 0) + 1
+        if rows < page_size:
+            break
+        page += 1
+    return history
+
 def _pick_ragic_po(items: list[dict], fallback: str) -> str:
     """從群組內挑第一個有值的 ragic_po；都空就 fallback。"""
     for it in items:
@@ -882,6 +928,22 @@ def ragic_products(refresh: int = 0):
         _ragic_load_products.cache_clear()
     products = _ragic_load_products()
     return {"count": len(products), "products": products}
+
+@app.get("/ragic/history", dependencies=[Depends(require_auth)])
+def ragic_history(customer: Optional[str] = None, refresh: int = 0):
+    """回傳客戶歷史訂購品項 {客戶編號: {品名: 次數}}，供比對加權。
+    ?customer=35 只回該客戶；?refresh=1 強制重抓。"""
+    if refresh:
+        _ragic_load_order_history.cache_clear()
+    hist = _ragic_load_order_history()
+    if customer:
+        c = str(customer).strip()
+        return {"customer": c, "items": hist.get(c, {}), "count": len(hist.get(c, {}))}
+    return {
+        "customers": len(hist),
+        "total_items": sum(len(v) for v in hist.values()),
+        "history": hist,
+    }
 
 @app.get("/ragic/test-write", dependencies=[Depends(require_auth)])
 def ragic_test_write(ragic_po: Optional[str] = None, customer_code: Optional[str] = None):

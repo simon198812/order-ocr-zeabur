@@ -108,6 +108,7 @@ const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
 let customerList = [];  // Ragic 客戶清單 [{code, name, short_name, category}]
 let productList = [];   // Ragic 商品清單 [{name, model, code, unit, category, price}]
+let orderHistory = {};  // 客戶歷史訂購 {客戶編號: {品名: 次數}}
 // Ragic 寫入必填：ragic_po + date + ragic_customer_code (客戶編號)
 const REQUIRED_FOR_RAGIC = ['ragic_po', 'date', 'ragic_customer_code'];
 
@@ -191,6 +192,7 @@ function showMain() {
   $('mainSection').classList.remove('hidden');
   loadCustomers();
   loadProducts();
+  loadOrderHistory();
 }
 
 async function loadCustomers() {
@@ -239,6 +241,25 @@ async function loadProducts() {
   } catch(e) {
     console.warn('載入商品清單失敗:', e);
   }
+}
+
+async function loadOrderHistory() {
+  try {
+    const r = await fetch('/ragic/history');
+    if (!r.ok) return;
+    const d = await r.json();
+    orderHistory = d.history || {};
+    console.log(`Loaded history for ${Object.keys(orderHistory).length} customers`);
+  } catch(e) {
+    console.warn('載入歷史訂單失敗:', e);
+  }
+}
+
+// 該客戶買過這個品名幾次 (0 = 沒買過)
+function historyCount(customerCode, productName) {
+  if (!customerCode || !productName) return 0;
+  const bucket = orderHistory[String(customerCode).trim()];
+  return bucket ? (bucket[productName] || 0) : 0;
 }
 
 function populateProductDatalist() {
@@ -328,11 +349,12 @@ function attrConflicts(aNorm, bNorm) {
  * 智慧比對商品：綜合型號、品名相似度、包含關係評分。
  * @returns {{product, score, reason}|null}  score 0~100
  */
-function matchProduct(order) {
+function matchProduct(order, customerCode) {
   if (!productList.length) return null;
   const ocrName  = String(order.item || '').trim();
   const ocrModel = String(order.brand || '').trim();
   if (!ocrName && !ocrModel) return null;
+  const custCode = customerCode || order.ragic_customer_code || '';
 
   const ocrNameNorm  = normText(ocrName);
   const ocrModelNorm = normText(ocrModel);
@@ -382,6 +404,16 @@ function matchProduct(order) {
       const conflicts = attrConflicts(ocrNameNorm, pNameNorm);
       if (conflicts) { score -= 45 * conflicts; reasons.push(`⚠材質/規格不符(-${45*conflicts})`); }
     }
+    // 7. 客戶歷史訂購加權 ⭐ 這家客戶買過的品項優先推薦
+    //    只在已有基本相似度時才加權，避免亂推歷史品項
+    if (score > 15 && custCode) {
+      const times = historyCount(custCode, p.name);
+      if (times) {
+        const bonus = Math.min(80, 40 + times * 8);  // 買越多次分數越高，上限 80
+        score += bonus;
+        reasons.push(`⭐該客戶買過 ${times} 次`);
+      }
+    }
 
     if (score > 0 && (!best || score > best.score)) {
       best = { product: p, score, reason: reasons.join('、') };
@@ -394,6 +426,44 @@ function matchProduct(order) {
 
 function productDisplay(p) {
   return p.model ? `${p.name} 〔${p.model}〕` : p.name;
+}
+
+/**
+ * 客戶改變後，重新比對該 po_no 群組的商品 (吃新客戶的歷史訂購加權)。
+ * 只覆寫「自動比對」的結果，使用者手動選過的保持不動。
+ */
+function rematchProductsForGroup(poNo, customerCode) {
+  if (!poNo || !customerCode) return;
+  document.querySelectorAll('.editable-field[data-field="ragic_product_name"]').forEach(input => {
+    const idx = parseInt(input.dataset.orderIdx);
+    const o = pendingOrders[idx];
+    if (!o || (o.po_no || '').trim() !== poNo) return;
+    if (o._user_picked_product) return;   // 使用者手選過，尊重他的選擇
+
+    const hit = matchProduct(o, customerCode);
+    const newName = hit ? hit.product.name : '';
+    o.ragic_product_name = newName;
+    o._match_score  = hit ? Math.round(hit.score) : 0;
+    o._match_reason = hit ? hit.reason : '';
+
+    const p = hit ? hit.product : null;
+    input.value = p ? productDisplay(p) : '';
+    input.classList.toggle('is-empty', !p);
+    if (p) input.classList.remove('is-invalid');
+    // 更新旁邊的提示文字
+    const hintEl = input.parentElement.querySelector('span:last-child');
+    if (hintEl && hintEl !== input.previousElementSibling) {
+      if (p) {
+        const sc = o._match_score;
+        const lvl = sc >= 120 ? ['#0a7','高'] : (sc >= 60 ? ['#c80','中'] : ['#d63031','低']);
+        hintEl.style.color = lvl[0];
+        hintEl.textContent = `✓ 信心${lvl[1]} (${sc}) ${o._match_reason || ''}`;
+      } else {
+        hintEl.style.color = '#c80';
+        hintEl.textContent = `未自動比對到，請搜尋選擇 (OCR: ${o.item || '—'})`;
+      }
+    }
+  });
 }
 
 // 模糊比對單一字串 → 客戶清單，找最匹配的客戶編號 (空字串=找不到)
@@ -499,7 +569,12 @@ function collectEdits() {
     } else if (field === 'ragic_product_name') {
       // 從顯示字串「電腦架加固定架 〔UD-50〕」解析出產品名稱
       const pname = parseProductName(val);
-      pendingOrders[idx].ragic_product_name = findProductByName(pname) ? pname : '';
+      const valid = !!findProductByName(pname);
+      // 使用者手動改過且有效 → 標記，避免客戶變更時被自動重算覆蓋
+      if (valid && pname !== pendingOrders[idx].ragic_product_name) {
+        pendingOrders[idx]._user_picked_product = true;
+      }
+      pendingOrders[idx].ragic_product_name = valid ? pname : '';
     } else if (['qty', 'price', 'total', 'order_total', 'warranty'].includes(field)) {
       pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
     } else {
@@ -669,9 +744,10 @@ function displayResults(resultsData, showSubmit) {
         // 廠商標準化：OCR 抓的字串 → 三個固定選項之一 (找不到就留 OCR 原文讓使用者選)
         const guessedVendor = guessVendor(o.vendor);
         if (guessedVendor) o.vendor = guessedVendor;
-        // 商品智慧比對：型號 + 品名相似度，找不到就留 OCR 原文
+        // 商品智慧比對：客戶歷史 + 型號 + 品名相似度
+        // (客戶已在上面決定，這裡才能吃到歷史加權)
         if (o.ragic_product_name === undefined) {
-          const hit = matchProduct(o);
+          const hit = matchProduct(o, o.ragic_customer_code);
           o.ragic_product_name  = hit ? hit.product.name : '';
           o._match_score  = hit ? Math.round(hit.score) : 0;
           o._match_reason = hit ? hit.reason : '';
@@ -715,7 +791,7 @@ function displayResults(resultsData, showSubmit) {
             const score = o._match_score || 0;
             let hint = '';
             if (matched) {
-              const lvl = score >= 100 ? ['#0a7', '高'] : (score >= 60 ? ['#c80', '中'] : ['#d63031', '低']);
+              const lvl = score >= 120 ? ['#0a7', '高'] : (score >= 60 ? ['#c80', '中'] : ['#d63031', '低']);
               hint = `<span style="color:${lvl[0]};font-size:.78rem;margin-left:8px">✓ 信心${lvl[1]} (${score}) ${o._match_reason || ''}</span>`;
             } else if (curName) {
               hint = `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ 商品庫找不到，請搜尋選擇</span>`;
@@ -816,6 +892,8 @@ function displayResults(resultsData, showSubmit) {
             }
           });
         }
+        // ⭐ 客戶變了 → 該群組的商品重新比對 (吃該客戶的歷史訂購加權)
+        if (matched) rematchProductsForGroup(myPo, code);
       }
 
       if (!watchFields.has(field)) return;
