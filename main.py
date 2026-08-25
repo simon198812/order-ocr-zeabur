@@ -946,6 +946,36 @@ def ragic_products(refresh: int = 0):
     products = _ragic_load_products()
     return {"count": len(products), "products": products}
 
+@app.get("/ragic/raw-product", dependencies=[Depends(require_auth)])
+def ragic_raw_product(keyword: Optional[str] = None, limit: int = 2):
+    """診斷用：回傳商品資料表的完整原始欄位 (含所有 EID)，
+    用來確認資材代碼存在哪個欄位。"""
+    if not RAGIC_API_KEY:
+        return {"error": "未設定 RAGIC_API_KEY"}
+    url = f"{RAGIC_BASE_URL}{RAGIC_PRODUCT_PATH}?api&naming=EID&limit=0,{max(1, min(limit, 5))}"
+    if keyword:
+        url += f"&where=1000617,like,{requests.utils.quote(keyword, safe='')}"
+    try:
+        r = requests.get(url, headers=_ragic_headers(), timeout=30)
+        r.raise_for_status()
+        data = r.json()
+    except Exception as e:
+        return {"error": f"{type(e).__name__}: {e}"}
+    if not isinstance(data, dict):
+        return {"error": "非預期回應"}
+    out = []
+    for rid, rec in data.items():
+        if not str(rid).isdigit() or not isinstance(rec, dict):
+            continue
+        # 只留有值的欄位，方便閱讀
+        out.append({
+            "ragic_id": rid,
+            "fields": {k: v for k, v in rec.items()
+                       if v not in ("", None, [], {}) and not k.startswith("_")},
+            "subtable_keys": [k for k in rec.keys() if k.startswith("_subtable")],
+        })
+    return {"count": len(out), "records": out}
+
 @app.get("/ragic/history", dependencies=[Depends(require_auth)])
 def ragic_history(customer: Optional[str] = None, refresh: int = 0):
     """回傳客戶歷史訂購資料，供商品比對使用：
