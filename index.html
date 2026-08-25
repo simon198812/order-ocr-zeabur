@@ -109,7 +109,6 @@ let selectedFiles = [], pendingOrders = [];
 let customerList = [];  // Ragic 客戶清單 [{code, name, short_name, category}]
 let productList = [];   // Ragic 商品清單 [{name, model, code, unit, category, price}]
 let orderHistory = {};  // 客戶歷史訂購 {客戶編號: {品名: 次數}}
-let materialMap = {};   // 資材代碼對應 {客戶編號: {資材代碼: 品名}} — 合約品項精準比對
 // Ragic 寫入必填：ragic_po + date + ragic_customer_code (客戶編號)
 const REQUIRED_FOR_RAGIC = ['ragic_po', 'date', 'ragic_customer_code'];
 
@@ -250,21 +249,42 @@ async function loadOrderHistory() {
     if (!r.ok) return;
     const d = await r.json();
     orderHistory = d.history || {};
-    materialMap  = d.material || {};
-    console.log(`Loaded history for ${Object.keys(orderHistory).length} customers, ` +
-                `${d.material_entries || 0} material-code mappings`);
+    console.log(`Loaded history for ${Object.keys(orderHistory).length} customers`);
   } catch(e) {
     console.warn('載入歷史訂單失敗:', e);
   }
 }
 
-// 合約品項：用「客戶 + 資材代碼」查歷史用過的商品 (100% 精準，代碼是醫院固定編號)
-function lookupByMaterialId(customerCode, materialId) {
-  if (!customerCode || !materialId) return null;
-  const bucket = materialMap[String(customerCode).trim()];
-  if (!bucket) return null;
-  const name = bucket[String(materialId).trim()];
-  return name ? findProductByName(name) : null;
+/**
+ * 合約品項精準比對：用「公司 + 資材代碼」查商品資料表的結構化欄位。
+ * 資材代碼是合約上的固定編號，命中即 100% 確定。
+ * @returns {{products: Array, matchedCompany: boolean}} 候選商品清單
+ */
+function lookupByMaterialCode(vendorName, materialId) {
+  const code = String(materialId || '').trim();
+  if (!code || !productList.length) return { products: [], matchedCompany: false };
+
+  const withCode = productList.filter(p => (p.material_code || '').trim() === code);
+  if (!withCode.length) return { products: [], matchedCompany: false };
+
+  // 先用「公司 + 代碼」嚴格比對 (使用者選的 B 方案)
+  const company = guessVendorShort(vendorName);
+  if (company) {
+    const exact = withCode.filter(p => (p.contract_company || '').trim() === company);
+    if (exact.length) return { products: exact, matchedCompany: true };
+  }
+  // 公司對不上 (OCR 廠商可能抓錯、或商品沒填公司) → 仍回傳代碼相符的，但標示未驗證公司
+  return { products: withCode, matchedCompany: false };
+}
+
+// 廠商全名 → 短名 (長洲/尚鋒/靖展)，對應商品表的「合約品項-公司」欄位
+function guessVendorShort(vendorName) {
+  const full = guessVendor(vendorName);
+  if (!full) return '';
+  if (full.includes('長洲')) return '長洲';
+  if (full.includes('尚鋒')) return '尚鋒';
+  if (full.includes('靖展')) return '靖展';
+  return '';
 }
 
 // 該客戶買過這個品名幾次 (0 = 沒買過)
@@ -403,11 +423,23 @@ function matchProduct(order, customerCode) {
   const ocrModel = String(order.brand || '').trim();
   const custCode = customerCode || order.ragic_customer_code || '';
 
-  // ⚡ 合約品項優先：資材代碼是醫院固定編號，查到就是 100% 正確
-  const byMaterial = lookupByMaterialId(custCode, order.material_id);
-  if (byMaterial) {
-    return { product: byMaterial, score: 999,
-             reason: `⚡資材代碼 ${order.material_id} 歷史對應` };
+  // ⚡ 合約品項優先：資材代碼是合約固定編號，命中即 100% 確定
+  const mat = lookupByMaterialCode(order.vendor, order.material_id);
+  if (mat.products.length) {
+    const codeTag = `資材碼 ${String(order.material_id).trim()}`;
+    const companyTag = mat.matchedCompany ? '' : '（⚠公司未驗證）';
+    if (mat.products.length === 1) {
+      return { product: mat.products[0], score: 999,
+               reason: `⚡${codeTag} 合約對應${companyTag}` };
+    }
+    // 一個代碼對到多個產品 → 在候選中用品名相似度挑最像的，並提示確認
+    let pick = mat.products[0], bestSim = -1;
+    for (const p of mat.products) {
+      const sim = diceSim(ocrName || '', p.name);
+      if (sim > bestSim) { bestSim = sim; pick = p; }
+    }
+    return { product: pick, score: 500,
+             reason: `⚡${codeTag} 有 ${mat.products.length} 個產品，已選最相似${companyTag}` };
   }
 
   if (!ocrName && !ocrModel) return null;
@@ -508,6 +540,15 @@ function productDisplay(p) {
   return p.model ? `${p.name} 〔${p.model}〕` : p.name;
 }
 
+/** 分數 → [顏色, 文字, 圖示]。999=資材碼唯一命中、500=資材碼一對多 */
+function confidenceLevel(score) {
+  if (score >= 999) return ['#0a7', '合約代碼確認', '⚡'];
+  if (score >= 500) return ['#c80', '合約代碼(需確認品項)', '⚡'];
+  if (score >= 120) return ['#0a7', '信心高', '✓'];
+  if (score >= 60)  return ['#c80', '信心中', '✓'];
+  return ['#d63031', '信心低', '✓'];
+}
+
 /**
  * 客戶改變後，重新比對該 po_no 群組的商品 (吃新客戶的歷史訂購加權)。
  * 只覆寫「自動比對」的結果，使用者手動選過的保持不動。
@@ -534,10 +575,9 @@ function rematchProductsForGroup(poNo, customerCode) {
     const hintEl = input.parentElement.querySelector('span:last-child');
     if (hintEl && hintEl !== input.previousElementSibling) {
       if (p) {
-        const sc = o._match_score;
-        const lvl = sc >= 120 ? ['#0a7','高'] : (sc >= 60 ? ['#c80','中'] : ['#d63031','低']);
+        const lvl = confidenceLevel(o._match_score);
         hintEl.style.color = lvl[0];
-        hintEl.textContent = `✓ 信心${lvl[1]} (${sc}) ${o._match_reason || ''}`;
+        hintEl.textContent = `${lvl[2]} ${lvl[1]} (${o._match_score}) ${o._match_reason || ''}`;
       } else {
         hintEl.style.color = '#c80';
         hintEl.textContent = `未自動比對到，請搜尋選擇 (OCR: ${o.item || '—'})`;
@@ -871,8 +911,8 @@ function displayResults(resultsData, showSubmit) {
             const score = o._match_score || 0;
             let hint = '';
             if (matched) {
-              const lvl = score >= 120 ? ['#0a7', '高'] : (score >= 60 ? ['#c80', '中'] : ['#d63031', '低']);
-              hint = `<span style="color:${lvl[0]};font-size:.78rem;margin-left:8px">✓ 信心${lvl[1]} (${score}) ${o._match_reason || ''}</span>`;
+              const lvl = confidenceLevel(score);
+              hint = `<span style="color:${lvl[0]};font-size:.78rem;margin-left:8px">${lvl[2]} ${lvl[1]} (${score}) ${o._match_reason || ''}</span>`;
             } else if (curName) {
               hint = `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ 商品庫找不到，請搜尋選擇</span>`;
             } else {
@@ -974,6 +1014,12 @@ function displayResults(resultsData, showSubmit) {
         }
         // ⭐ 客戶變了 → 該群組的商品重新比對 (吃該客戶的歷史訂購加權)
         if (matched) rematchProductsForGroup(myPo, code);
+      }
+
+      // 廠商變了 → 重新比對 (資材代碼用「公司+代碼」，公司改了結果會不同)
+      if (field === 'vendor' && myPo) {
+        const cust = pendingOrders[idx].ragic_customer_code || '';
+        rematchProductsForGroup(myPo, cust);
       }
 
       if (!watchFields.has(field)) return;

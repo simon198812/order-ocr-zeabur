@@ -547,12 +547,11 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         payload[f"1000332_{rid}"] = product_name
         payload[f"1000334_{rid}"] = "" if qty in (None, "", 0) else str(qty)
         payload[f"1000333_{rid}"] = "" if price in (None, "", 0) else str(price)
-        # 子表備註：資材代碼 (合約品項) 放最前面，方便日後建立
-        # 「客戶+資材代碼 → 商品」的精準對應表
+        # 子表備註：合約品項附上資材代碼，方便人工對帳追溯
         note_parts = []
         mat_id = str(it.get("material_id", "") or "").strip()
         if mat_id:
-            note_parts.append(f"[資材:{mat_id}]")
+            note_parts.append(f"資材碼 {mat_id}")
         if str(it.get("note", "") or "").strip():
             note_parts.append(str(it["note"]).strip())
         payload[f"1006516_{rid}"] = " ".join(note_parts)                     # 子表備註
@@ -750,21 +749,22 @@ def _ragic_load_products() -> list:
             "unit": str(rec.get("1000618", "") or "").strip(),      # 單位
             "category": str(rec.get("1000615", "") or "").strip(),  # 種類
             "price": str(rec.get("1000619", "") or "").strip(),     # 銷售單價
+            # 合約品項：結構化的公司 + 資材代碼 (供 OCR 精準比對)
+            "contract_company": str(rec.get("1007109", "") or "").strip(),
+            "material_code": str(rec.get("1007110", "") or "").strip(),
         })
     products.sort(key=lambda p: p["name"])
     return products
 
 @lru_cache(maxsize=1)
 def _ragic_load_order_history() -> dict:
-    """從訂單總單抓歷史紀錄，建立兩張對照表：
-    - history: {客戶編號: {品名: 次數}}         → 模糊比對加權
-    - material: {客戶編號: {資材代碼: 品名}}     → 合約品項精準對應
-    資材代碼從子表備註的 [資材:XXX] 標記解析。
-    回傳 {"history": ..., "material": ...}。"""
+    """從訂單總單抓歷史紀錄，建立「客戶編號 → 曾訂購品名次數」對照表，
+    供商品模糊比對加權 (該客戶買過的優先推薦)。
+    註：資材代碼的精準對應改由商品資料表的 1007109/1007110 提供。
+    回傳 {"history": {客戶編號: {品名: 次數}}}。"""
     if not RAGIC_API_KEY:
-        return {"history": {}, "material": {}}
+        return {"history": {}}
     history: dict = {}
-    material: dict = {}
     # 分頁抓全部訂單 (含子表 1000341 訂購項目)
     page, page_size, max_pages = 0, 1000, 20
     while page < max_pages:
@@ -799,15 +799,10 @@ def _ragic_load_order_history() -> dict:
                 if not pname:
                     continue
                 bucket[pname] = bucket.get(pname, 0) + 1
-                # 從備註解析資材代碼 [資材:XXX] → 建立精準對應
-                note = str(line.get("1006516", "") or "")
-                m = re.search(r"\[資材[:：]\s*([^\]\s]+)\]", note)
-                if m:
-                    material.setdefault(cust, {})[m.group(1).strip()] = pname
         if rows < page_size:
             break
         page += 1
-    return {"history": history, "material": material}
+    return {"history": history}
 
 def _pick_ragic_po(items: list[dict], fallback: str) -> str:
     """從群組內挑第一個有值的 ragic_po；都空就 fallback。"""
@@ -1177,29 +1172,18 @@ def ragic_backfill_material(dry_run: int = 1, overwrite: int = 0):
 
 @app.get("/ragic/history", dependencies=[Depends(require_auth)])
 def ragic_history(customer: Optional[str] = None, refresh: int = 0):
-    """回傳客戶歷史訂購資料，供商品比對使用：
-    - history:  {客戶編號: {品名: 次數}}      模糊比對加權
-    - material: {客戶編號: {資材代碼: 品名}}  合約品項精準對應
+    """回傳客戶歷史訂購 {客戶編號: {品名: 次數}}，供商品模糊比對加權。
     ?customer=35 只回該客戶；?refresh=1 強制重抓。"""
     if refresh:
         _ragic_load_order_history.cache_clear()
-    data = _ragic_load_order_history()
-    hist = data.get("history", {})
-    mat = data.get("material", {})
+    hist = _ragic_load_order_history().get("history", {})
     if customer:
         c = str(customer).strip()
-        return {
-            "customer": c,
-            "items": hist.get(c, {}),
-            "count": len(hist.get(c, {})),
-            "material_map": mat.get(c, {}),
-        }
+        return {"customer": c, "items": hist.get(c, {}), "count": len(hist.get(c, {}))}
     return {
         "customers": len(hist),
         "total_items": sum(len(v) for v in hist.values()),
-        "material_entries": sum(len(v) for v in mat.values()),
         "history": hist,
-        "material": mat,
     }
 
 @app.get("/ragic/test-write", dependencies=[Depends(require_auth)])
