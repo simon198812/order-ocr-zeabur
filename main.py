@@ -682,6 +682,36 @@ def _ragic_load_customers() -> list:
     customers.sort(key=lambda c: c["code"])
     return customers
 
+# 商品備註 (1000632) 的資材代碼格式範例：
+#   長洲 資材碼93512031
+#   長洲 合約品項 資材碼 93103012
+#   長洲 合約品項 資材代碼: 95111002
+#   長洲 合約品項 94105001          (省略「資材碼」字樣)
+#   雷射_ EM12240A                 (不是資材碼，應跳過)
+_MATERIAL_COMPANIES = ["長洲", "尚鋒", "靖展"]
+_MATERIAL_RE = re.compile(
+    r"(?:資材\s*(?:代)?\s*[碼码]|合約品項)?"   # 可選的標記詞
+    r"\s*[:：]?\s*"                            # 可選的分隔符
+    r"(\d{5,12})"                              # 資材代碼：5~12 位純數字
+)
+
+def _parse_material_note(note: str) -> tuple:
+    """從商品備註解析 (公司, 資材代碼)。解析不到回 (公司或'', '')。
+    只認純數字代碼，避開「雷射_ EM12240A」這類字母混合的備註。"""
+    if not note:
+        return ("", "")
+    s = str(note).strip()
+    company = ""
+    for c in _MATERIAL_COMPANIES:
+        if c in s:
+            company = c
+            break
+    # 只在有「資材」或「合約品項」字樣時才抽代碼，避免把其他數字誤判
+    if "資材" not in s and "合約品項" not in s:
+        return (company, "")
+    m = _MATERIAL_RE.search(s)
+    return (company, m.group(1) if m else "")
+
 @lru_cache(maxsize=1)
 def _ragic_load_products() -> list:
     """從 (尚鋒) 商品資料 表單抓全部商品；快取於記憶體。
@@ -975,6 +1005,77 @@ def ragic_raw_product(keyword: Optional[str] = None, limit: int = 2):
             "subtable_keys": [k for k in rec.keys() if k.startswith("_subtable")],
         })
     return {"count": len(out), "records": out}
+
+@app.get("/ragic/scan-material", dependencies=[Depends(require_auth)])
+def ragic_scan_material(samples: int = 25):
+    """唯讀掃描：分析商品備註 1000632 的資材代碼格式分布。
+    不修改任何資料，只回傳統計與樣本，供確認解析規則。"""
+    if not RAGIC_API_KEY:
+        return {"error": "未設定 RAGIC_API_KEY"}
+
+    stats = {
+        "total_products": 0,
+        "with_note": 0,
+        "parsed": 0,
+        "unparsed": 0,
+    }
+    by_company: dict = {}
+    code_lengths: dict = {}
+    parsed_samples: list = []
+    unparsed_samples: list = []
+    dup_codes: dict = {}
+
+    page, page_size, max_pages = 0, 1000, 10
+    while page < max_pages:
+        url = (f"{RAGIC_BASE_URL}{RAGIC_PRODUCT_PATH}?api&naming=EID"
+               f"&subtables=0&limit={page * page_size},{page_size}")
+        try:
+            r = requests.get(url, headers=_ragic_headers(), timeout=60)
+            r.raise_for_status()
+            data = r.json()
+        except Exception as e:
+            return {"error": f"{type(e).__name__}: {e}", "stats": stats}
+        if not isinstance(data, dict):
+            break
+        rows = 0
+        for rid, rec in data.items():
+            if not str(rid).isdigit() or not isinstance(rec, dict):
+                continue
+            rows += 1
+            stats["total_products"] += 1
+            note = str(rec.get("1000632", "") or "").strip()
+            if not note:
+                continue
+            stats["with_note"] += 1
+            name = str(rec.get("1000617", "") or "").strip()
+            company, code = _parse_material_note(note)
+            if code:
+                stats["parsed"] += 1
+                by_company[company or "(未標公司)"] = by_company.get(company or "(未標公司)", 0) + 1
+                code_lengths[len(code)] = code_lengths.get(len(code), 0) + 1
+                key = f"{company}|{code}"
+                dup_codes.setdefault(key, []).append(name)
+                if len(parsed_samples) < samples:
+                    parsed_samples.append(
+                        {"note": note, "company": company, "code": code, "product": name})
+            else:
+                stats["unparsed"] += 1
+                if len(unparsed_samples) < samples:
+                    unparsed_samples.append({"note": note, "product": name})
+        if rows < page_size:
+            break
+        page += 1
+
+    duplicates = {k: v for k, v in dup_codes.items() if len(v) > 1}
+    return {
+        "stats": stats,
+        "by_company": by_company,
+        "code_length_distribution": code_lengths,
+        "duplicate_codes": dict(list(duplicates.items())[:10]),
+        "duplicate_count": len(duplicates),
+        "parsed_samples": parsed_samples,
+        "unparsed_samples": unparsed_samples,
+    }
 
 @app.get("/ragic/history", dependencies=[Depends(require_auth)])
 def ragic_history(customer: Optional[str] = None, refresh: int = 0):
