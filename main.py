@@ -404,6 +404,10 @@ def _group_orders_by_po(orders: list[dict]) -> dict:
 def _ragic_url() -> str:
     return f"{RAGIC_BASE_URL}{RAGIC_FORM_PATH}"
 
+def _ragic_url_for(path: str) -> str:
+    """組其他表單的 API 網址 (例如商品資料表)。"""
+    return f"{RAGIC_BASE_URL}{path}"
+
 def _ragic_headers(extra: Optional[dict] = None) -> dict:
     """Ragic 官方建議用法：Authorization: Basic {api_key} (直接放，不再 base64 encode)。
     Ragic 的 API Key 本身已經是 Base64 字串。"""
@@ -1076,6 +1080,100 @@ def ragic_scan_material(samples: int = 25):
         "parsed_samples": parsed_samples,
         "unparsed_samples": unparsed_samples,
     }
+
+@app.get("/ragic/backfill-material", dependencies=[Depends(require_auth)])
+def ragic_backfill_material(dry_run: int = 1, overwrite: int = 0):
+    """把商品備註中的資材代碼回填到結構化欄位。
+    - 1007109 合約品項-公司 (單選 長洲/尚鋒/靖展)
+    - 1007110 資材代碼 (文字，保留前導 0)
+
+    預設 dry_run=1 只預覽不寫入。dry_run=0 才真的寫。
+    overwrite=0 時只填空欄位，不覆蓋已有值。
+    """
+    if not RAGIC_API_KEY:
+        return {"error": "未設定 RAGIC_API_KEY"}
+
+    plan, skipped = [], []
+    page, page_size, max_pages = 0, 1000, 10
+    while page < max_pages:
+        url = (f"{RAGIC_BASE_URL}{RAGIC_PRODUCT_PATH}?api&naming=EID"
+               f"&subtables=0&limit={page * page_size},{page_size}")
+        try:
+            r = requests.get(url, headers=_ragic_headers(), timeout=60)
+            r.raise_for_status()
+            data = r.json()
+        except Exception as e:
+            return {"error": f"{type(e).__name__}: {e}"}
+        if not isinstance(data, dict):
+            break
+        rows = 0
+        for rid, rec in data.items():
+            if not str(rid).isdigit() or not isinstance(rec, dict):
+                continue
+            rows += 1
+            note = str(rec.get("1000632", "") or "").strip()
+            if not note:
+                continue
+            company, code = _parse_material_note(note)
+            if not code:
+                continue
+            cur_company = str(rec.get("1007109", "") or "").strip()
+            cur_code = str(rec.get("1007110", "") or "").strip()
+            if not overwrite and (cur_company or cur_code):
+                skipped.append({"ragic_id": rid,
+                                "product": str(rec.get("1000617", "") or "")[:40],
+                                "reason": "欄位已有值",
+                                "current": {"company": cur_company, "code": cur_code}})
+                continue
+            plan.append({
+                "ragic_id": rid,
+                "product": str(rec.get("1000617", "") or "")[:45],
+                "note": note.replace("\r", " ").replace("\n", " ")[:45],
+                "write_company": company,      # 沒解析到公司就留空 (使用者手動補)
+                "write_code": code,
+            })
+        if rows < page_size:
+            break
+        page += 1
+
+    result = {
+        "dry_run": bool(dry_run),
+        "planned": len(plan),
+        "skipped": len(skipped),
+        "no_company": sum(1 for p in plan if not p["write_company"]),
+        "items": plan,
+        "skipped_items": skipped[:20],
+    }
+    if dry_run:
+        result["message"] = "預覽模式，未寫入任何資料。確認後用 ?dry_run=0 執行。"
+        return result
+
+    # 實際寫入
+    ok, fail = 0, []
+    headers = _ragic_headers({"Content-Type": "application/x-www-form-urlencoded; charset=utf-8"})
+    for item in plan:
+        payload = {"1007110": item["write_code"]}
+        if item["write_company"]:
+            payload["1007109"] = item["write_company"]
+        try:
+            encoded = "&".join(
+                f"{k}={requests.utils.quote(str(v), safe='')}" for k, v in payload.items()
+            ).encode("utf-8")
+            rr = requests.post(f"{_ragic_url_for(RAGIC_PRODUCT_PATH)}/{item['ragic_id']}?api",
+                               data=encoded, headers=headers, timeout=30)
+            body = rr.json() if rr.status_code == 200 else {}
+            if body.get("status") == "SUCCESS":
+                ok += 1
+            else:
+                fail.append({"ragic_id": item["ragic_id"], "resp": str(body)[:150]})
+        except Exception as e:
+            fail.append({"ragic_id": item["ragic_id"], "error": f"{type(e).__name__}: {e}"})
+    result["written"] = ok
+    result["failed"] = len(fail)
+    result["failures"] = fail[:10]
+    result["message"] = f"已寫入 {ok} 筆，失敗 {len(fail)} 筆。"
+    _ragic_load_products.cache_clear()
+    return result
 
 @app.get("/ragic/history", dependencies=[Depends(require_auth)])
 def ragic_history(customer: Optional[str] = None, refresh: int = 0):
