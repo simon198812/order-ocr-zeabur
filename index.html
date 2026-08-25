@@ -302,6 +302,28 @@ function diceSim(a, b) {
   return (2 * inter) / (A.size + B.size);
 }
 
+// 互斥屬性組：同組內出現不同值 = 不同商品 (例如不銹鋼車 ≠ 塑鋼車)
+const EXCLUSIVE_ATTRS = [
+  ['不銹鋼', '不鏽鋼', '塑鋼', '粉體', '烤漆', '鋁合金'],  // 材質
+  ['單層', '二層', '兩層', '三層', '四層', '五層'],        // 層數
+];
+
+/**
+ * 檢查兩個品名的互斥屬性是否衝突。
+ * @returns {number} 衝突組數 (0 = 沒衝突)
+ */
+function attrConflicts(aNorm, bNorm) {
+  let conflicts = 0;
+  for (const group of EXCLUSIVE_ATTRS) {
+    const inA = group.filter(k => aNorm.includes(normText(k)));
+    const inB = group.filter(k => bNorm.includes(normText(k)));
+    if (!inA.length || !inB.length) continue;
+    // 兩邊都有此類屬性，但沒有任何交集 → 衝突
+    if (!inA.some(k => inB.includes(k))) conflicts++;
+  }
+  return conflicts;
+}
+
 /**
  * 智慧比對商品：綜合型號、品名相似度、包含關係評分。
  * @returns {{product, score, reason}|null}  score 0~100
@@ -332,12 +354,14 @@ function matchProduct(order) {
     if (ocrModelNorm && pModelNorm && pModelNorm === ocrModelNorm) {
       score += 60; reasons.push('型號完全相同');
     }
-    // 3. 型號 token 交集 (例如 OCR「UD車 50人份」對到型號「UD-50」)
-    if (ocrTokens.size && pModelNorm) {
+    // 3. 型號/尺寸 token 交集
+    //    商品庫多數沒填「廠牌型號」欄位，型號與尺寸都藏在產品名稱裡
+    //    (例如「SF9074 二層車 70x50x85cm」)，所以兩邊都要抽
+    if (ocrTokens.size) {
       const pTokens = new Set([...extractModelTokens(p.model), ...extractModelTokens(p.name)]);
       let hit = 0;
       ocrTokens.forEach(t => { if (pTokens.has(t)) hit++; });
-      if (hit) { score += 35 * hit; reasons.push(`型號片段相符 (${hit})`); }
+      if (hit) { score += 35 * hit; reasons.push(`型號/尺寸相符 (${hit})`); }
     }
     // 4. 互相包含 (OCR 品名包含商品名，或反之)
     if (ocrNameNorm && pNameNorm) {
@@ -352,6 +376,11 @@ function matchProduct(order) {
     if (ocrNameNorm && pNameNorm) {
       const sim = diceSim(ocrName, p.name);
       if (sim > 0.25) { score += sim * 50; reasons.push(`品名相似 ${(sim*100).toFixed(0)}%`); }
+    }
+    // 6. 互斥屬性衝突懲罰 (不銹鋼車 vs 塑鋼車、二層車 vs 三層車)
+    if (ocrNameNorm && pNameNorm) {
+      const conflicts = attrConflicts(ocrNameNorm, pNameNorm);
+      if (conflicts) { score -= 45 * conflicts; reasons.push(`⚠材質/規格不符(-${45*conflicts})`); }
     }
 
     if (score > 0 && (!best || score > best.score)) {
