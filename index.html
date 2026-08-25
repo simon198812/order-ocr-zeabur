@@ -109,6 +109,7 @@ let selectedFiles = [], pendingOrders = [];
 let customerList = [];  // Ragic 客戶清單 [{code, name, short_name, category}]
 let productList = [];   // Ragic 商品清單 [{name, model, code, unit, category, price}]
 let orderHistory = {};  // 客戶歷史訂購 {客戶編號: {品名: 次數}}
+let materialMap = {};   // 資材代碼對應 {客戶編號: {資材代碼: 品名}} — 合約品項精準比對
 // Ragic 寫入必填：ragic_po + date + ragic_customer_code (客戶編號)
 const REQUIRED_FOR_RAGIC = ['ragic_po', 'date', 'ragic_customer_code'];
 
@@ -249,10 +250,21 @@ async function loadOrderHistory() {
     if (!r.ok) return;
     const d = await r.json();
     orderHistory = d.history || {};
-    console.log(`Loaded history for ${Object.keys(orderHistory).length} customers`);
+    materialMap  = d.material || {};
+    console.log(`Loaded history for ${Object.keys(orderHistory).length} customers, ` +
+                `${d.material_entries || 0} material-code mappings`);
   } catch(e) {
     console.warn('載入歷史訂單失敗:', e);
   }
+}
+
+// 合約品項：用「客戶 + 資材代碼」查歷史用過的商品 (100% 精準，代碼是醫院固定編號)
+function lookupByMaterialId(customerCode, materialId) {
+  if (!customerCode || !materialId) return null;
+  const bucket = materialMap[String(customerCode).trim()];
+  if (!bucket) return null;
+  const name = bucket[String(materialId).trim()];
+  return name ? findProductByName(name) : null;
 }
 
 // 該客戶買過這個品名幾次 (0 = 沒買過)
@@ -389,8 +401,16 @@ function matchProduct(order, customerCode) {
   if (!productList.length) return null;
   const ocrName  = String(order.item || '').trim();
   const ocrModel = String(order.brand || '').trim();
-  if (!ocrName && !ocrModel) return null;
   const custCode = customerCode || order.ragic_customer_code || '';
+
+  // ⚡ 合約品項優先：資材代碼是醫院固定編號，查到就是 100% 正確
+  const byMaterial = lookupByMaterialId(custCode, order.material_id);
+  if (byMaterial) {
+    return { product: byMaterial, score: 999,
+             reason: `⚡資材代碼 ${order.material_id} 歷史對應` };
+  }
+
+  if (!ocrName && !ocrModel) return null;
 
   const ocrNameNorm  = normText(ocrName);
   const ocrModelNorm = normText(ocrModel);
