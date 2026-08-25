@@ -50,6 +50,7 @@ APP_PASSWORD            = os.getenv("APP_PASSWORD", "").strip()
 RAGIC_BASE_URL    = os.getenv("RAGIC_BASE_URL", "https://ap2.ragic.com/SFinc").strip().rstrip("/")
 RAGIC_FORM_PATH   = os.getenv("RAGIC_FORM_PATH", "/forms2/4").strip()
 RAGIC_CUSTOMER_PATH = os.getenv("RAGIC_CUSTOMER_PATH", "/e5aea2e688b6/1").strip()
+RAGIC_PRODUCT_PATH  = os.getenv("RAGIC_PRODUCT_PATH", "/e5aea2e688b6/18").strip()
 RAGIC_API_KEY     = os.getenv("RAGIC_API_KEY", "").strip()
 RAGIC_ENABLED     = os.getenv("RAGIC_ENABLED", "true").strip().lower() in ("1", "true", "yes", "on")
 
@@ -535,7 +536,11 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         qty = it.get("qty", "")
         price = it.get("price", "")
         payload[f"1000331_{rid}"] = idx_val                                  # 項次
-        payload[f"1000332_{rid}"] = str(it.get("item", "") or "")            # 品名規格 (連結)
+        # 品名規格 (連結欄位)：優先用前端智慧比對/手選的 Ragic 商品名，
+        # 沒有才 fallback 用 OCR 原文 (連結會斷，需人工修)
+        product_name = str(it.get("ragic_product_name", "") or "").strip() \
+                       or str(it.get("item", "") or "")
+        payload[f"1000332_{rid}"] = product_name
         payload[f"1000334_{rid}"] = "" if qty in (None, "", 0) else str(qty)
         payload[f"1000333_{rid}"] = "" if price in (None, "", 0) else str(price)
         payload[f"1006516_{rid}"] = str(it.get("note", "") or "")            # 子表備註
@@ -668,6 +673,44 @@ def _ragic_load_customers() -> list:
     # 按客戶編號排序，方便前端瀏覽
     customers.sort(key=lambda c: c["code"])
     return customers
+
+@lru_cache(maxsize=1)
+def _ragic_load_products() -> list:
+    """從 (尚鋒) 商品資料 表單抓全部商品；快取於記憶體。
+    回傳 [{ragic_id, name, model, code, unit, category, price}]。
+    name (產品名稱 1000617) 就是訂單子表「品名規格」連結欄位要寫入的值。"""
+    if not RAGIC_API_KEY:
+        return []
+    url = (
+        f"{RAGIC_BASE_URL}{RAGIC_PRODUCT_PATH}?api&naming=EID"
+        f"&subtables=0&limit=0,5000"
+    )
+    try:
+        r = requests.get(url, headers=_ragic_headers(), timeout=30)
+        r.raise_for_status()
+        data = r.json()
+    except Exception:
+        return []
+    if not isinstance(data, dict):
+        return []
+    products = []
+    for rid, rec in data.items():
+        if not str(rid).isdigit() or not isinstance(rec, dict):
+            continue
+        name = str(rec.get("1000617", "") or "").strip()   # 產品名稱 (連結欄位寫入值)
+        if not name:
+            continue
+        products.append({
+            "ragic_id": str(rid),
+            "name": name,
+            "model": str(rec.get("1000912", "") or "").strip(),     # 廠牌型號
+            "code": str(rec.get("1000916", "") or "").strip(),      # 商品編號
+            "unit": str(rec.get("1000618", "") or "").strip(),      # 單位
+            "category": str(rec.get("1000615", "") or "").strip(),  # 種類
+            "price": str(rec.get("1000619", "") or "").strip(),     # 銷售單價
+        })
+    products.sort(key=lambda p: p["name"])
+    return products
 
 def _pick_ragic_po(items: list[dict], fallback: str) -> str:
     """從群組內挑第一個有值的 ragic_po；都空就 fallback。"""
@@ -831,6 +874,14 @@ def ragic_customers(refresh: int = 0):
         _ragic_load_customers.cache_clear()
     customers = _ragic_load_customers()
     return {"count": len(customers), "customers": customers}
+
+@app.get("/ragic/products", dependencies=[Depends(require_auth)])
+def ragic_products(refresh: int = 0):
+    """回傳 (尚鋒) 商品資料表清單給前端做智慧比對 + 下拉。?refresh=1 強制重抓。"""
+    if refresh:
+        _ragic_load_products.cache_clear()
+    products = _ragic_load_products()
+    return {"count": len(products), "products": products}
 
 @app.get("/ragic/test-write", dependencies=[Depends(require_auth)])
 def ragic_test_write(ragic_po: Optional[str] = None, customer_code: Optional[str] = None):
