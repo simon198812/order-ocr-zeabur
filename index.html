@@ -98,6 +98,8 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
     <div id="ragicSummary"></div>
     <!-- 共用客戶清單，給所有 ragic_customer_code 輸入框搜尋 -->
     <datalist id="customersDatalist"></datalist>
+    <!-- 共用商品清單，給所有品名欄位搜尋 -->
+    <datalist id="productsDatalist"></datalist>
   </div>
 </div>
 
@@ -105,6 +107,7 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 const $ = id => document.getElementById(id);
 let selectedFiles = [], pendingOrders = [];
 let customerList = [];  // Ragic 客戶清單 [{code, name, short_name, category}]
+let productList = [];   // Ragic 商品清單 [{name, model, code, unit, category, price}]
 // Ragic 寫入必填：ragic_po + date + ragic_customer_code (客戶編號)
 const REQUIRED_FOR_RAGIC = ['ragic_po', 'date', 'ragic_customer_code'];
 
@@ -132,6 +135,7 @@ function guessVendor(text) {
 const FIELD_LABELS = {
   ragic_po:           '🟧 Ragic 訂單編號 (手動填)',
   ragic_customer_code:'🟦 Ragic 客戶 (下拉選)',
+  ragic_product_name: '🟪 Ragic 品名 (智慧比對)',
   hospital:           '客戶名稱(醫院)',
   date:         '訂購日期',
   deadline:     '交貨期限/預計到貨日',
@@ -159,7 +163,7 @@ const FIELD_LABELS = {
 
 // 預覽時顯示的欄位順序 (Ragic 寫入用欄位放最前面)
 const DISPLAY_FIELDS = [
-  'ragic_po','ragic_customer_code',
+  'ragic_po','ragic_customer_code','ragic_product_name',
   'hospital','date','deadline','vendor','loc','type','material_id',
   'item','brand','qty','unit','price','total',
   'dept','user','ext',
@@ -186,6 +190,7 @@ async function doLogin() {
 function showMain() {
   $('mainSection').classList.remove('hidden');
   loadCustomers();
+  loadProducts();
 }
 
 async function loadCustomers() {
@@ -220,6 +225,146 @@ function populateCustomerDatalist() {
     const v = customerDisplay(c).replace(/"/g,'&quot;');
     return `<option value="${v}">`;
   }).join('');
+}
+
+// ============ 商品智慧比對 ============
+async function loadProducts() {
+  try {
+    const r = await fetch('/ragic/products');
+    if (!r.ok) return;
+    const d = await r.json();
+    productList = d.products || [];
+    populateProductDatalist();
+    console.log(`Loaded ${productList.length} Ragic products`);
+  } catch(e) {
+    console.warn('載入商品清單失敗:', e);
+  }
+}
+
+function populateProductDatalist() {
+  const dl = $('productsDatalist');
+  if (!dl) return;
+  dl.innerHTML = productList.map(p => {
+    const label = p.model ? `${p.name} 〔${p.model}〕` : p.name;
+    return `<option value="${String(label).replace(/"/g,'&quot;')}">`;
+  }).join('');
+}
+
+// 從顯示字串取回產品名稱 (去掉「〔型號〕」尾巴)
+function parseProductName(text) {
+  if (!text) return '';
+  return String(text).replace(/\s*〔[^〕]*〕\s*$/, '').trim();
+}
+
+function findProductByName(name) {
+  if (!name) return null;
+  return productList.find(p => p.name === name) || null;
+}
+
+// 正規化：全形→半形、去空白/標點、轉大寫，方便比對型號與品名
+function normText(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+    .toUpperCase()
+    .replace(/[\s\-_/()（）［］\[\]、,，.。:：*#"'`]/g, '');
+}
+
+// 抽出型號樣式的 token (字母+數字混合，例如 UD-50、XK2000、A100)
+function extractModelTokens(s) {
+  if (!s) return [];
+  const t = normText(s);
+  const tokens = new Set();
+  // 字母數字混合串 (至少含一個數字)
+  const re = /[A-Z]*\d+[A-Z0-9]*/g;
+  let m;
+  while ((m = re.exec(t)) !== null) {
+    if (m[0].length >= 2) tokens.add(m[0]);
+  }
+  return [...tokens];
+}
+
+// 中文 bigram 集合 (連續兩字)，用來算相似度
+function bigrams(s) {
+  const t = normText(s);
+  const out = new Set();
+  for (let i = 0; i < t.length - 1; i++) out.add(t.slice(i, i + 2));
+  if (t.length === 1) out.add(t);
+  return out;
+}
+
+// Dice 係數：2*交集 / (|A|+|B|)，回傳 0~1
+function diceSim(a, b) {
+  const A = bigrams(a), B = bigrams(b);
+  if (!A.size || !B.size) return 0;
+  let inter = 0;
+  A.forEach(g => { if (B.has(g)) inter++; });
+  return (2 * inter) / (A.size + B.size);
+}
+
+/**
+ * 智慧比對商品：綜合型號、品名相似度、包含關係評分。
+ * @returns {{product, score, reason}|null}  score 0~100
+ */
+function matchProduct(order) {
+  if (!productList.length) return null;
+  const ocrName  = String(order.item || '').trim();
+  const ocrModel = String(order.brand || '').trim();
+  if (!ocrName && !ocrModel) return null;
+
+  const ocrNameNorm  = normText(ocrName);
+  const ocrModelNorm = normText(ocrModel);
+  // 型號 token 從 brand 與 item 兩邊都抓 (型號常混在品名裡)
+  const ocrTokens = new Set([...extractModelTokens(ocrModel), ...extractModelTokens(ocrName)]);
+
+  let best = null;
+  for (const p of productList) {
+    const pNameNorm  = normText(p.name);
+    const pModelNorm = normText(p.model);
+    let score = 0;
+    const reasons = [];
+
+    // 1. 品名完全相同 → 幾乎確定
+    if (ocrNameNorm && pNameNorm === ocrNameNorm) {
+      score += 100; reasons.push('品名完全相同');
+    }
+    // 2. 型號完全相同 → 很強的信號
+    if (ocrModelNorm && pModelNorm && pModelNorm === ocrModelNorm) {
+      score += 60; reasons.push('型號完全相同');
+    }
+    // 3. 型號 token 交集 (例如 OCR「UD車 50人份」對到型號「UD-50」)
+    if (ocrTokens.size && pModelNorm) {
+      const pTokens = new Set([...extractModelTokens(p.model), ...extractModelTokens(p.name)]);
+      let hit = 0;
+      ocrTokens.forEach(t => { if (pTokens.has(t)) hit++; });
+      if (hit) { score += 35 * hit; reasons.push(`型號片段相符 (${hit})`); }
+    }
+    // 4. 互相包含 (OCR 品名包含商品名，或反之)
+    if (ocrNameNorm && pNameNorm) {
+      if (ocrNameNorm.includes(pNameNorm) || pNameNorm.includes(ocrNameNorm)) {
+        // 長度越接近，分數越高
+        const ratio = Math.min(ocrNameNorm.length, pNameNorm.length) /
+                      Math.max(ocrNameNorm.length, pNameNorm.length);
+        score += 40 * ratio; reasons.push('品名包含關係');
+      }
+    }
+    // 5. 品名 bigram 相似度 (核心的模糊比對)
+    if (ocrNameNorm && pNameNorm) {
+      const sim = diceSim(ocrName, p.name);
+      if (sim > 0.25) { score += sim * 50; reasons.push(`品名相似 ${(sim*100).toFixed(0)}%`); }
+    }
+
+    if (score > 0 && (!best || score > best.score)) {
+      best = { product: p, score, reason: reasons.join('、') };
+    }
+  }
+  // 門檻：太低就不猜，讓使用者自己選
+  if (!best || best.score < 30) return null;
+  return best;
+}
+
+function productDisplay(p) {
+  return p.model ? `${p.name} 〔${p.model}〕` : p.name;
 }
 
 // 模糊比對單一字串 → 客戶清單，找最匹配的客戶編號 (空字串=找不到)
@@ -322,6 +467,10 @@ function collectEdits() {
       const customer = findCustomer(code);
       pendingOrders[idx].ragic_customer_code = customer ? code : '';
       pendingOrders[idx].ragic_customer_category = customer ? customer.category : '';
+    } else if (field === 'ragic_product_name') {
+      // 從顯示字串「電腦架加固定架 〔UD-50〕」解析出產品名稱
+      const pname = parseProductName(val);
+      pendingOrders[idx].ragic_product_name = findProductByName(pname) ? pname : '';
     } else if (['qty', 'price', 'total', 'order_total', 'warranty'].includes(field)) {
       pendingOrders[idx][field] = val ? parseFloat(val) || 0 : 0;
     } else {
@@ -491,6 +640,13 @@ function displayResults(resultsData, showSubmit) {
         // 廠商標準化：OCR 抓的字串 → 三個固定選項之一 (找不到就留 OCR 原文讓使用者選)
         const guessedVendor = guessVendor(o.vendor);
         if (guessedVendor) o.vendor = guessedVendor;
+        // 商品智慧比對：型號 + 品名相似度，找不到就留 OCR 原文
+        if (o.ragic_product_name === undefined) {
+          const hit = matchProduct(o);
+          o.ragic_product_name  = hit ? hit.product.name : '';
+          o._match_score  = hit ? Math.round(hit.score) : 0;
+          o._match_reason = hit ? hit.reason : '';
+        }
       });
       pendingOrders.push(...orders);
 
@@ -521,6 +677,30 @@ function displayResults(resultsData, showSubmit) {
                      data-order-idx="${globalIdx}" data-field="${k}"
                      placeholder="輸入編號 / 簡稱 / 名稱搜尋 (例: 林新、35)">
               ${taxHint}
+            </div>`;
+          } else if (k === 'ragic_product_name') {
+            // 商品智慧比對：input + datalist，可搜尋品名或型號
+            const curName = String(val);
+            const matched = findProductByName(curName);
+            const inputVal = matched ? productDisplay(matched) : curName;
+            const score = o._match_score || 0;
+            let hint = '';
+            if (matched) {
+              const lvl = score >= 100 ? ['#0a7', '高'] : (score >= 60 ? ['#c80', '中'] : ['#d63031', '低']);
+              hint = `<span style="color:${lvl[0]};font-size:.78rem;margin-left:8px">✓ 信心${lvl[1]} (${score}) ${o._match_reason || ''}</span>`;
+            } else if (curName) {
+              hint = `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ 商品庫找不到，請搜尋選擇</span>`;
+            } else {
+              hint = `<span style="color:#c80;font-size:.78rem;margin-left:8px">未自動比對到，請搜尋選擇 (OCR: ${(o.item||'—')})</span>`;
+            }
+            ordersHTML += `<div class="field-row">
+              <span class="order-label">${label}:</span>
+              <input type="text" class="editable-field ${matched ? '' : 'is-empty'}"
+                     list="productsDatalist"
+                     value="${String(inputVal).replace(/"/g,'&quot;')}"
+                     data-order-idx="${globalIdx}" data-field="${k}"
+                     placeholder="輸入品名或型號搜尋">
+              ${hint}
             </div>`;
           } else if (k === 'vendor') {
             // 廠商 3 選 1 下拉
