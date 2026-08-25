@@ -329,6 +329,42 @@ const EXCLUSIVE_ATTRS = [
   ['單層', '二層', '兩層', '三層', '四層', '五層'],        // 層數
 ];
 
+// 產品主體詞：品名的核心名詞，不同就是完全不同的東西
+// (床頭「櫃」≠ 垃圾「桶」、藥杯「架」≠ 衛材「車」)
+const CORE_NOUNS = [
+  '推車','餐車','藥車','衛材車','治療車','護理車','工作車','車',
+  '床頭櫃','置物櫃','櫃',
+  '點滴架','屏風架','架',
+  '垃圾桶','污物桶','桶',
+  '診療床','診察床','病床','床',
+  '椅','凳','桌','台','箱','盒','籃','盆','架子',
+  '燈','鏡','機','器','儀','錶','計',
+  '袋','布','罩','套','墊','枕',
+  '管','針','鉗','剪','刀','盤','桿','梯','屏風','欄',
+];
+
+/** 從品名抽出產品主體詞 (最長匹配優先，回傳 null 表示無法判定) */
+function extractCoreNoun(name) {
+  const t = normText(name);
+  if (!t) return null;
+  // 去掉尺寸與型號雜訊，只留中文主體
+  const zh = t.replace(/[A-Z0-9×X*.\/]+/g, '');
+  for (const noun of CORE_NOUNS) {          // CORE_NOUNS 已按長度優先排序
+    if (zh.includes(normText(noun))) return noun;
+  }
+  return null;
+}
+
+/** 兩個品名的產品主體詞是否互斥 (都判定得出來但不同 → true) */
+function coreNounMismatch(a, b) {
+  const na = extractCoreNoun(a), nb = extractCoreNoun(b);
+  if (!na || !nb) return false;             // 判不出來就不罰
+  if (na === nb) return false;
+  // 同屬一個大類 (例如「藥車」與「推車」都是車) 就不算互斥
+  const tailA = na.slice(-1), tailB = nb.slice(-1);
+  return tailA !== tailB;
+}
+
 /**
  * 檢查兩個品名的互斥屬性是否衝突。
  * @returns {number} 衝突組數 (0 = 沒衝突)
@@ -392,6 +428,15 @@ function matchProduct(order, customerCode) {
         const ratio = Math.min(ocrNameNorm.length, pNameNorm.length) /
                       Math.max(ocrNameNorm.length, pNameNorm.length);
         score += 40 * ratio; reasons.push('品名包含關係');
+      } else {
+        // 去掉尺寸/型號後再比一次中文主體
+        // (「開放式不銹鋼床頭櫃 20x30」應該對得到「不銹鋼床頭櫃 48x46x83cm」)
+        const zhA = ocrNameNorm.replace(/[A-Z0-9×X*.\/]+/g, '');
+        const zhB = pNameNorm.replace(/[A-Z0-9×X*.\/]+/g, '');
+        if (zhA && zhB && (zhA.includes(zhB) || zhB.includes(zhA))) {
+          const ratio = Math.min(zhA.length, zhB.length) / Math.max(zhA.length, zhB.length);
+          score += 45 * ratio; reasons.push('品名主體包含');
+        }
       }
     }
     // 5. 品名 bigram 相似度 (核心的模糊比對)
@@ -404,12 +449,27 @@ function matchProduct(order, customerCode) {
       const conflicts = attrConflicts(ocrNameNorm, pNameNorm);
       if (conflicts) { score -= 45 * conflicts; reasons.push(`⚠材質/規格不符(-${45*conflicts})`); }
     }
-    // 7. 客戶歷史訂購加權 ⭐ 這家客戶買過的品項優先推薦
-    //    只在已有基本相似度時才加權，避免亂推歷史品項
-    if (score > 15 && custCode) {
+    // 7. 產品主體詞：相同加分、不同重罰
+    //    (床頭「櫃」vs 垃圾「桶」是完全不同的東西)
+    const coreMismatch = coreNounMismatch(ocrName, p.name);
+    if (coreMismatch) {
+      score -= 90; reasons.push('⚠品類不符(-90)');
+    } else {
+      const nA = extractCoreNoun(ocrName), nB = extractCoreNoun(p.name);
+      if (nA && nB && nA === nB) {
+        // 多字核心詞辨識力強 (床頭櫃)，單字較弱 (架、車)
+        const bonus = nA.length >= 2 ? 40 : 15;
+        score += bonus; reasons.push(`品類相符「${nA}」`);
+      }
+    }
+
+    // 8. 客戶歷史訂購加權 ⭐ 優先推薦這家客戶買過的品項
+    //    僅在品名已有實質相似度、且品類相符時才加權，
+    //    避免「客戶買過很多次」壓過「根本不是同一個東西」
+    if (score >= 50 && !coreMismatch && custCode) {
       const times = historyCount(custCode, p.name);
       if (times) {
-        const bonus = Math.min(80, 40 + times * 8);  // 買越多次分數越高，上限 80
+        const bonus = Math.min(45, 25 + times * 4);  // 上限 45，不足以蓋過品名差異
         score += bonus;
         reasons.push(`⭐該客戶買過 ${times} 次`);
       }
