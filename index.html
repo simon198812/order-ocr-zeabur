@@ -11,6 +11,7 @@ body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;background:linear-gr
 h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
 .subtitle{text-align:center;color:#666;margin-bottom:8px;font-size:.92rem}
 .sort-info{text-align:center;color:#888;font-size:.8rem;margin-bottom:20px;background:#f0f4ff;border-radius:8px;padding:7px 12px;border-left:3px solid #667eea}
+.version-line{text-align:center;color:#aaa;font-size:.72rem;margin-bottom:14px;letter-spacing:.3px}
 .login-box{max-width:360px;margin:0 auto}
 .login-box input{width:100%;padding:12px 16px;border:2px solid #ddd;border-radius:10px;font-size:1rem;margin-bottom:12px;outline:none;transition:border .3s}
 .login-box input:focus{border-color:#667eea}
@@ -69,7 +70,8 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 <body>
 <div class="container">
   <h1>📄 OCR 訂單處理系統</h1>
-  <p class="subtitle">支援 PDF + 圖片 ｜ 一般訂單 & 合約品項自動辨識 ｜ 多品項自動拆分</p>
+  <p class="subtitle">支援 PDF + 圖片 ｜ 一般訂單 &amp; 合約品項自動辨識 ｜ 多品項自動拆分</p>
+  <p class="version-line" id="versionLine"></p>
 
   <div id="loginSection" class="hidden">
     <div class="login-box" style="margin-top:30px">
@@ -182,10 +184,17 @@ const DISPLAY_FIELDS = [
   'note','warranty'
 ];
 
+function showVersion(d) {
+  if (!d || !d.version) return;
+  const el = $('versionLine');
+  if (el) el.textContent = `v${d.version}　部署於 ${d.started_at || '—'}`;
+}
+
 async function checkAuth() {
   try {
     const r = await fetch('/auth/status');
     const d = await r.json();
+    showVersion(d);
     if (!d.required || d.authenticated) { showMain(); return; }
     $('loginSection').classList.remove('hidden');
     $('passwordInput').addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });

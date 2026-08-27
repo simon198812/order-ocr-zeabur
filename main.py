@@ -1,17 +1,15 @@
-"""OCR 訂單處理系統 - FastAPI 後端 v2.2
+"""OCR 訂單處理系統 - FastAPI 後端
 
-基於 OCRtoSheet 重構優化:
-- Gemini 2.5 Flash + 結構化輸出 (response_schema) → 穩定度大幅提升
-- 支援 PDF (Gemini 原生支援,不用 poppler)
-- 用 google-auth 取代 deprecated 的 oauth2client
-- Google Sheet 連線快取 (不用每次重建)
-- 批次寫入 (append_rows 一次寫完,減少 API call)
-- 密碼保護 (環境變數 APP_PASSWORD)
-- /preview 預覽模式 + /submit 確認後才寫入
-- /health 健康檢查
-- 格式清洗: po_no (M+9碼), ext (4~5碼) regex 驗證
-- 檔案自然排序 (1.jpg < 2.jpg < 10.jpg)
-- 保固月數獨立欄位 + 總金額自動計算
+OCR (Gemini) → Google Sheet → Ragic 訂單總單
+
+主要功能:
+- Gemini 結構化輸出 (response_schema)，支援 PDF 與圖片
+- /preview 預覽 + /submit 確認後才寫入；密碼保護
+- Ragic 整合：同 po_no 合併為一筆訂單 (主表 + 子表)
+- 客戶比對：前端可搜尋選擇，寫入時帶出客戶資訊與營業稅
+- 商品智慧比對：型號/尺寸 + 品名相似度 + 客戶歷史決勝
+- 合約品項：用「公司 + 資材代碼」精準對應商品主檔
+- 原始 PDF 自動上傳為 Ragic 附件
 """
 import os
 import io
@@ -37,6 +35,11 @@ from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# ------------------- 版本 -------------------
+# 改動功能時手動遞增；啟動時間可用來確認部署是否已生效
+APP_VERSION = "3.0.0"
+STARTED_AT = datetime.now().strftime("%Y/%m/%d %H:%M")
 
 # ------------------- 環境變數 -------------------
 GEMINI_API_KEY          = os.getenv("GEMINI_API_KEY", "").strip()
@@ -898,6 +901,8 @@ app.add_middleware(
 def health():
     return {
         "status": "ok",
+        "version": APP_VERSION,
+        "started_at": STARTED_AT,
         "gemini_configured": bool(GEMINI_API_KEY),
         "sheet_configured": bool(GOOGLE_CREDENTIALS_JSON),
         "ragic_enabled": RAGIC_ENABLED,
@@ -1358,9 +1363,11 @@ async def login(request: Request, response: Response):
 @app.get("/auth/status")
 def auth_status(session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
     if not APP_PASSWORD:
-        return {"required": False, "authenticated": True}
+        return {"required": False, "authenticated": True,
+                "version": APP_VERSION, "started_at": STARTED_AT}
     authed = bool(session and hmac.compare_digest(session, SESSION_SECRET))
-    return {"required": True, "authenticated": authed}
+    return {"required": True, "authenticated": authed,
+            "version": APP_VERSION, "started_at": STARTED_AT}
 
 @app.post("/preview", dependencies=[Depends(require_auth)])
 async def preview(files: list[UploadFile] = File(...)):
