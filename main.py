@@ -38,8 +38,11 @@ load_dotenv()
 
 # ------------------- 版本 -------------------
 # 改動功能時手動遞增；啟動時間可用來確認部署是否已生效
-APP_VERSION = "3.0.0"
+APP_VERSION = "3.0.1"
 STARTED_AT = datetime.now().strftime("%Y/%m/%d %H:%M")
+
+# Gemini token 用量累計 (自本次啟動起)，供成本追蹤
+TOKEN_USAGE = {"calls": 0, "input": 0, "output": 0}
 
 # ------------------- 環境變數 -------------------
 GEMINI_API_KEY          = os.getenv("GEMINI_API_KEY", "").strip()
@@ -249,6 +252,8 @@ def _try_recover_truncated_json(text: str) -> Optional[str]:
     return text[:last_complete + 1] + ']}'
 
 # ------------------- OCR 核心 -------------------
+_last_usage = {"input": 0, "output": 0}
+
 def extract_orders_from_file(file_bytes: bytes, filename: str) -> list[dict]:
     """用 Gemini 從檔案 (圖片/PDF) 萃取訂單資料"""
     ext = os.path.splitext(filename)[1].lower()
@@ -284,6 +289,18 @@ def extract_orders_from_file(file_bytes: bytes, filename: str) -> list[dict]:
             max_output_tokens=65536,  # 大幅放寬避免品項多時被截斷
         ),
     )
+
+    # 記錄實際 token 用量 (max_output_tokens 只是上限，不代表用量)
+    usage = getattr(response, "usage_metadata", None)
+    if usage:
+        tin = getattr(usage, "prompt_token_count", 0) or 0
+        tout = getattr(usage, "candidates_token_count", 0) or 0
+        TOKEN_USAGE["calls"] += 1
+        TOKEN_USAGE["input"] += tin
+        TOKEN_USAGE["output"] += tout
+        _last_usage.update({"input": tin, "output": tout})
+    else:
+        _last_usage.update({"input": 0, "output": 0})
 
     raw_text = response.text
     try:
@@ -903,6 +920,7 @@ def health():
         "status": "ok",
         "version": APP_VERSION,
         "started_at": STARTED_AT,
+        "token_usage": dict(TOKEN_USAGE),
         "gemini_configured": bool(GEMINI_API_KEY),
         "sheet_configured": bool(GOOGLE_CREDENTIALS_JSON),
         "ragic_enabled": RAGIC_ENABLED,
@@ -1388,6 +1406,7 @@ async def preview(files: list[UploadFile] = File(...)):
                 "status": "success",
                 "orders": orders,
                 "items_count": len(orders),
+                "tokens": dict(_last_usage),
             })
         except Exception as e:
             results.append({
