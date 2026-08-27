@@ -11,7 +11,22 @@ body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;background:linear-gr
 h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
 .subtitle{text-align:center;color:#666;margin-bottom:8px;font-size:.92rem}
 .sort-info{text-align:center;color:#888;font-size:.8rem;margin-bottom:20px;background:#f0f4ff;border-radius:8px;padding:7px 12px;border-left:3px solid #667eea}
-.version-line{text-align:center;color:#aaa;font-size:.72rem;margin-bottom:14px;letter-spacing:.3px}
+.version-line{text-align:center;margin-bottom:14px}
+.version-btn{background:#f0f4ff;color:#667eea;border:1px solid #dde3f5;border-radius:20px;padding:3px 12px;font-size:.72rem;font-family:inherit;cursor:pointer;letter-spacing:.3px;transition:all .2s}
+.version-btn:hover{background:#667eea;color:#fff;border-color:#667eea}
+.modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;justify-content:center;align-items:center;padding:20px;z-index:100}
+.modal-box{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-head{position:sticky;top:0;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:18px 22px 12px;border-bottom:1px solid #eee}
+.modal-head h3{color:#667eea;font-size:1.05rem}
+.modal-close{background:none;border:none;font-size:1.4rem;color:#999;cursor:pointer;line-height:1;padding:0 4px}
+.modal-close:hover{color:#333}
+.modal-body{padding:16px 22px 22px}
+.cl-item{margin-bottom:18px}
+.cl-ver{display:inline-block;background:#667eea;color:#fff;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px}
+.cl-ver.old{background:#bbb}
+.cl-title{font-weight:600;color:#333;font-size:.88rem;margin:6px 0 4px}
+.cl-item ul{margin:0;padding-left:19px}
+.cl-item li{color:#555;font-size:.83rem;line-height:1.65;margin-bottom:2px}
 .login-box{max-width:360px;margin:0 auto}
 .login-box input{width:100%;padding:12px 16px;border:2px solid #ddd;border-radius:10px;font-size:1rem;margin-bottom:12px;outline:none;transition:border .3s}
 .login-box input:focus{border-color:#667eea}
@@ -184,10 +199,82 @@ const DISPLAY_FIELDS = [
   'note','warranty'
 ];
 
+// ============ 版本更新紀錄 ============
+// 新版本請加在最前面
+const CHANGELOG = [
+  { v: '3.0.0', title: '品名核對一次搞定', items: [
+    '品名比對會列出 3 個相似候選，點一下就能切換',
+    '不同尺寸的地方會黃底反白，例如 70x50x85 vs 80x50x90',
+    '候選旁顯示 OCR 原文，不用往下滾就能對照',
+    '排序改以品名與型號為主，客戶購買次數只在分數接近時決勝',
+    '修正：品名連結後單位沒有帶出來',
+    '修正：備註不再混入資材碼，只留 OCR 抓到的內容',
+  ]},
+  { v: '2.9.0', title: '合約品項精準比對', items: [
+    '商品主檔新增「合約品項-公司」與「資材代碼」兩個欄位',
+    '訂單有資材代碼時，用公司＋代碼直接命中商品，不必靠品名猜',
+    '同一個代碼對到多個產品時，列出候選讓你挑',
+    '就算 OCR 把廠商看錯，只要代碼對仍能命中',
+  ]},
+  { v: '2.8.0', title: '商品智慧比對', items: [
+    '依型號、尺寸、品名相似度自動比對 Ragic 商品庫',
+    '參考該客戶過去買過什麼，優先推薦常買品項',
+    '避免材質誤配（不銹鋼不會配到塑鋼）與配件誤配',
+    '品名欄位可直接打字搜尋商品',
+  ]},
+  { v: '2.7.0', title: '客戶自動帶入', items: [
+    '依交貨地點自動比對 Ragic 客戶，可打字搜尋修正',
+    '寫入時自動帶出客戶名稱、統編、電話、地址、負責業務',
+    '依客戶類別自動決定營業稅（醫院 0%、同行 5%）',
+  ]},
+  { v: '2.6.0', title: '附件與交貨期限', items: [
+    '原始 PDF 自動上傳成 Ragic 訂單附件',
+    '交貨期限寫入 Ragic',
+    '廠商固定三選一，OCR 認錯字也能對回正確公司',
+    '分機支援 4~6 碼，也能認手機號碼',
+  ]},
+  { v: '2.5.0', title: 'Ragic 整合', items: [
+    'OCR 結果同時寫入 Google Sheet 與 Ragic 訂單總單',
+    '同一張訂單的多個品項自動合併為一筆 Ragic 訂單',
+    '已存在的訂單號碼會自動跳過，不會重複建立',
+    '寫入前檢查必填欄位，缺的用紅框標出來',
+  ]},
+  { v: '2.2.0', title: 'OCR 強化', items: [
+    '強化分機抓取邏輯',
+    '預覽畫面固定顯示全部欄位，沒抓到的用橘色標示',
+  ]},
+];
+
+function openChangelog(current) {
+  const body = CHANGELOG.map(c => `
+    <div class="cl-item">
+      <span class="cl-ver${c.v === current ? '' : ' old'}">v${c.v}</span>
+      <div class="cl-title">${c.title}</div>
+      <ul>${c.items.map(i => `<li>${i}</li>`).join('')}</ul>
+    </div>`).join('');
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  mask.innerHTML = `
+    <div class="modal-box">
+      <div class="modal-head">
+        <h3>📋 版本更新紀錄</h3>
+        <button type="button" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body">${body}</div>
+    </div>`;
+  // 點遮罩或關閉鈕都能關掉
+  mask.addEventListener('click', e => {
+    if (e.target === mask || e.target.closest('.modal-close')) mask.remove();
+  });
+  document.body.appendChild(mask);
+}
+
 function showVersion(d) {
   if (!d || !d.version) return;
   const el = $('versionLine');
-  if (el) el.textContent = `v${d.version}　部署於 ${d.started_at || '—'}`;
+  if (el) el.innerHTML = `<button type="button" class="version-btn" id="versionBtn">v${d.version} · 更新內容</button>`;
+  const btn = $('versionBtn');
+  if (btn) btn.addEventListener('click', () => openChangelog(d.version));
 }
 
 async function checkAuth() {
