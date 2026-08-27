@@ -52,6 +52,15 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .ragic-row .meta{color:#666;font-size:.8rem}
 .ragic-row .count{background:#f0f4ff;color:#667eea;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:600}
 .ragic-warn-text{color:#d63031;font-size:.82rem;margin-top:8px}
+.match-panel{margin:4px 0 8px 160px;font-size:.8rem}
+.match-ocr{color:#666;padding:3px 0}
+.match-ocr b{color:#333;font-weight:600}
+.match-alts{margin-top:4px}
+.match-alt{display:block;width:100%;text-align:left;background:#f4f6fb;border:1px solid #dde3f0;border-radius:6px;padding:4px 9px;margin-bottom:3px;cursor:pointer;font-size:.79rem;font-family:inherit;color:#333;transition:all .15s}
+.match-alt:hover{background:#e8edfa;border-color:#667eea}
+.match-alt .sc{color:#888;font-size:.74rem;margin-left:6px}
+.match-alt .hist{color:#c8860d;font-size:.74rem;margin-left:4px}
+.diff-hi{background:#ffe9a8;border-radius:2px;padding:0 2px;font-weight:600}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none !important}
@@ -111,6 +120,7 @@ let productList = [];   // Ragic 商品清單 [{name, model, code, unit, categor
 let orderHistory = {};  // 客戶歷史訂購 {客戶編號: {品名: 次數}}
 // Ragic 寫入必填：ragic_po + date + ragic_customer_code (客戶編號)
 const REQUIRED_FOR_RAGIC = ['ragic_po', 'date', 'ragic_customer_code'];
+const MAX_CANDIDATES = 3;   // 顯示幾個「其他相似候選」
 
 // 廠商固定三家 + 常見 OCR 誤識別字容錯
 const VENDOR_OPTIONS = [
@@ -375,6 +385,27 @@ const CORE_NOUNS = [
   '管','針','鉗','剪','刀','盤','桿','梯','屏風','欄',
 ];
 
+// 配件/服務詞：候選品名比 OCR 品名「多出」這些字，通常是配件或維修項目，
+// 不是本體 (OCR「床頭櫃」不該對到「床頭櫃拉板」)
+const ACCESSORY_WORDS = [
+  '拉板','蓋板','踏板','面板','底板','層板','背板','側板',
+  '零件','配件','修理','維修','更換','安裝','拆除','加工','改裝',
+  '把手','扶手','輪子','腳墊','螺絲','螺母','墊片','插銷',
+];
+
+/**
+ * 候選是否為 OCR 品項的「配件」而非本體。
+ * 條件：候選品名含配件詞，但 OCR 品名沒有 → 你要的是本體，它是零件。
+ * (OCR「不銹鋼床頭櫃」vs 候選「床頭櫃拉板」)
+ */
+function isAccessoryOf(ocrNameNorm, pNameNorm) {
+  if (!ocrNameNorm || !pNameNorm) return false;
+  return ACCESSORY_WORDS.some(w => {
+    const nw = normText(w);
+    return pNameNorm.includes(nw) && !ocrNameNorm.includes(nw);
+  });
+}
+
 /** 從品名抽出產品主體詞 (最長匹配優先，回傳 null 表示無法判定) */
 function extractCoreNoun(name) {
   const t = normText(name);
@@ -430,16 +461,18 @@ function matchProduct(order, customerCode) {
     const companyTag = mat.matchedCompany ? '' : '（⚠公司未驗證）';
     if (mat.products.length === 1) {
       return { product: mat.products[0], score: 999,
-               reason: `⚡${codeTag} 合約對應${companyTag}` };
+               reason: `⚡${codeTag} 合約對應${companyTag}`, alternatives: [] };
     }
-    // 一個代碼對到多個產品 → 在候選中用品名相似度挑最像的，並提示確認
-    let pick = mat.products[0], bestSim = -1;
-    for (const p of mat.products) {
-      const sim = diceSim(ocrName || '', p.name);
-      if (sim > bestSim) { bestSim = sim; pick = p; }
-    }
-    return { product: pick, score: 500,
-             reason: `⚡${codeTag} 有 ${mat.products.length} 個產品，已選最相似${companyTag}` };
+    // 一個代碼對到多個產品 → 依品名相似度排序，第一名為預設、其餘列為候選
+    const ranked = mat.products
+      .map(p => ({ product: p, sim: diceSim(ocrName || '', p.name) }))
+      .sort((a, b) => b.sim - a.sim);
+    return {
+      product: ranked[0].product, score: 500,
+      reason: `⚡${codeTag} 有 ${mat.products.length} 個產品，已選最相似${companyTag}`,
+      alternatives: ranked.slice(1, MAX_CANDIDATES + 1)
+        .map(r => ({ product: r.product, score: 500, times: 0, reason: '同資材代碼' })),
+    };
   }
 
   if (!ocrName && !ocrModel) return null;
@@ -449,7 +482,7 @@ function matchProduct(order, customerCode) {
   // 型號 token 從 brand 與 item 兩邊都抓 (型號常混在品名裡)
   const ocrTokens = new Set([...extractModelTokens(ocrModel), ...extractModelTokens(ocrName)]);
 
-  let best = null;
+  const candidates = [];
   for (const p of productList) {
     const pNameNorm  = normText(p.name);
     const pModelNorm = normText(p.model);
@@ -515,29 +548,100 @@ function matchProduct(order, customerCode) {
       }
     }
 
-    // 8. 客戶歷史訂購加權 ⭐ 優先推薦這家客戶買過的品項
-    //    僅在品名已有實質相似度、且品類相符時才加權，
-    //    避免「客戶買過很多次」壓過「根本不是同一個東西」
-    if (score >= 50 && !coreMismatch && custCode) {
-      const times = historyCount(custCode, p.name);
+    // 7b. 配件懲罰：候選是本體的配件 (床頭櫃 → 床頭櫃拉板)，不是要的東西
+    if (isAccessoryOf(ocrNameNorm, pNameNorm)) {
+      score -= 60; reasons.push('⚠疑似配件(-60)');
+    }
+
+    // ── 以上為「基礎分數」：只看品名 + 型號 + 品類 ──
+    const baseScore = score;
+
+    // 8. 客戶歷史訂購：只當「決勝」用，不蓋過品名差異
+    //    基礎分數接近時 (規格相似的客製品) 才靠買過幾次分高下
+    let times = 0;
+    if (baseScore >= 50 && !coreMismatch && custCode) {
+      times = historyCount(custCode, p.name);
       if (times) {
-        const bonus = Math.min(45, 25 + times * 4);  // 上限 45，不足以蓋過品名差異
-        score += bonus;
+        // 加成上限為基礎分的 15%，確保排序主要仍由品名/型號決定
+        score += Math.min(baseScore * 0.15, 8 + times * 2);
         reasons.push(`⭐該客戶買過 ${times} 次`);
       }
     }
 
-    if (score > 0 && (!best || score > best.score)) {
-      best = { product: p, score, reason: reasons.join('、') };
+    if (score > 0) {
+      candidates.push({ product: p, score, baseScore, times,
+                        reason: reasons.join('、') });
     }
   }
-  // 門檻：太低就不猜，讓使用者自己選
-  if (!best || best.score < 30) return null;
-  return best;
+
+  // 依最終分數排序，取前幾名當候選
+  candidates.sort((a, b) => b.score - a.score);
+  const top = candidates.filter(c => c.score >= 30).slice(0, MAX_CANDIDATES + 1);
+  if (!top.length) return null;
+  return { ...top[0], alternatives: top.slice(1) };
 }
 
 function productDisplay(p) {
   return p.model ? `${p.name} 〔${p.model}〕` : p.name;
+}
+
+const _ESC = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+/**
+ * 把 name 中「與 baseName 不同」的尺寸/型號片段反白，
+ * 讓「70x50x85cm」vs「80x50x90cm」的差異一眼看出來。
+ */
+function highlightDiff(name, baseName) {
+  const baseTokens = new Set(extractModelTokens(baseName));
+  // 切出數字/尺寸片段 (含 x、. 等連接符) 與其餘文字
+  return String(name).split(/([0-9]+(?:[.\-xX×*][0-9]+)*(?:\s*[a-zA-Z]{1,4})?)/g)
+    .map(seg => {
+      if (!/[0-9]/.test(seg)) return _ESC(seg);
+      const norm = normText(seg);
+      // 該片段在候選中「不存在於基準品名」→ 反白提示差異
+      const isDiff = norm && ![...baseTokens].some(t => t === norm || t.includes(norm) || norm.includes(t));
+      return isDiff ? `<span class="diff-hi">${_ESC(seg)}</span>` : _ESC(seg);
+    }).join('');
+}
+
+/**
+ * 品名比對輔助面板：OCR 原文並排 + 其他相似候選 (可點擊切換)。
+ * 目的是讓你在這一頁就能確認選對規格，不必再開 Ragic 核對。
+ */
+function renderMatchPanel(order, orderIdx, matchedProduct) {
+  const ocrItem  = String(order.item || '').trim();
+  const ocrBrand = String(order.brand || '').trim();
+  const ocrMat   = String(order.material_id || '').trim();
+  const alts = order._alternatives || [];
+  if (!ocrItem && !ocrBrand && !alts.length) return '';
+
+  let html = '<div class="match-panel">';
+  // OCR 原文並排，方便直接對照選中的商品
+  const parts = [];
+  if (ocrItem)  parts.push(`<b>${_ESC(ocrItem)}</b>`);
+  if (ocrBrand) parts.push(`型號 ${_ESC(ocrBrand)}`);
+  if (ocrMat)   parts.push(`資材碼 ${_ESC(ocrMat)}`);
+  if (parts.length) {
+    html += `<div class="match-ocr">OCR 原文：${parts.join(' ｜ ')}</div>`;
+  }
+  // 其他相似候選，尺寸差異反白
+  if (alts.length) {
+    const baseName = matchedProduct ? matchedProduct.name : ocrItem;
+    html += '<div class="match-alts">';
+    alts.forEach(a => {
+      const p = a.product;
+      const histTag = a.times ? `<span class="hist">⭐買過${a.times}次</span>` : '';
+      html += `<button type="button" class="match-alt"
+                 data-order-idx="${orderIdx}"
+                 data-pick="${_ESC(p.name).replace(/"/g,'&quot;')}">
+                 ⭕ ${highlightDiff(p.name, baseName)}
+                 <span class="sc">(${Math.round(a.score)})</span>${histTag}
+               </button>`;
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 /** 分數 → [顏色, 文字, 圖示]。999=資材碼唯一命中、500=資材碼一對多 */
@@ -566,6 +670,7 @@ function rematchProductsForGroup(poNo, customerCode) {
     o.ragic_product_name = newName;
     o._match_score  = hit ? Math.round(hit.score) : 0;
     o._match_reason = hit ? hit.reason : '';
+    o._alternatives = hit ? (hit.alternatives || []) : [];
 
     const p = hit ? hit.product : null;
     input.value = p ? productDisplay(p) : '';
@@ -574,6 +679,11 @@ function rematchProductsForGroup(poNo, customerCode) {
     // 更新旁邊的提示文字
     const hintEl = input.parentElement.querySelector('span:last-child');
     if (hintEl && hintEl !== input.previousElementSibling) {
+      // 候選清單也要跟著換 (客戶/廠商變了，相似候選與歷史次數都會不同)
+      const panel = input.closest('.field-row')?.nextElementSibling;
+      if (panel && panel.classList.contains('match-panel')) {
+        panel.outerHTML = renderMatchPanel(o, idx, p);
+      }
       if (p) {
         const lvl = confidenceLevel(o._match_score);
         hintEl.style.color = lvl[0];
@@ -871,6 +981,7 @@ function displayResults(resultsData, showSubmit) {
           o.ragic_product_name  = hit ? hit.product.name : '';
           o._match_score  = hit ? Math.round(hit.score) : 0;
           o._match_reason = hit ? hit.reason : '';
+          o._alternatives = hit ? (hit.alternatives || []) : [];
         }
       });
       pendingOrders.push(...orders);
@@ -926,7 +1037,8 @@ function displayResults(resultsData, showSubmit) {
                      data-order-idx="${globalIdx}" data-field="${k}"
                      placeholder="輸入品名或型號搜尋">
               ${hint}
-            </div>`;
+            </div>
+            ${renderMatchPanel(o, globalIdx, matched)}`;
           } else if (k === 'vendor') {
             // 廠商 3 選 1 下拉
             const curVal = String(val);
@@ -1036,6 +1148,26 @@ function displayResults(resultsData, showSubmit) {
   collectEdits();
   renderRagicSummary();
 }
+
+// 點擊「其他相似候選」→ 切換該筆品名。
+// 用事件委派，這樣候選面板重繪後 (換客戶/廠商) 仍然有效。
+$('results').addEventListener('click', e => {
+  const btn = e.target.closest('.match-alt');
+  if (!btn) return;
+  const idx = parseInt(btn.dataset.orderIdx);
+  const p = findProductByName(btn.dataset.pick);
+  if (!p || !pendingOrders[idx]) return;
+  const input = document.querySelector(
+    `.editable-field[data-field="ragic_product_name"][data-order-idx="${idx}"]`);
+  if (input) {
+    input.value = productDisplay(p);
+    input.classList.remove('is-empty', 'is-invalid');
+  }
+  pendingOrders[idx].ragic_product_name = p.name;
+  pendingOrders[idx]._user_picked_product = true;   // 手選過，不被自動重算覆蓋
+  collectEdits();
+  renderRagicSummary();
+});
 
 checkAuth();
 </script>
