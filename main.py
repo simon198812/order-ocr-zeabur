@@ -563,14 +563,9 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
             payload[f"1000342_{rid}"] = unit
         payload[f"1000334_{rid}"] = "" if qty in (None, "", 0) else str(qty)
         payload[f"1000333_{rid}"] = "" if price in (None, "", 0) else str(price)
-        # 子表備註：合約品項附上資材代碼，方便人工對帳追溯
-        note_parts = []
-        mat_id = str(it.get("material_id", "") or "").strip()
-        if mat_id:
-            note_parts.append(f"資材碼 {mat_id}")
-        if str(it.get("note", "") or "").strip():
-            note_parts.append(str(it["note"]).strip())
-        payload[f"1006516_{rid}"] = " ".join(note_parts)                     # 子表備註
+        # 子表備註：只放 OCR 抓到的備註原文。
+        # 資材代碼已在商品主檔 1007110 有專屬欄位，不在此重複記錄
+        payload[f"1006516_{rid}"] = str(it.get("note", "") or "").strip()
 
     # 過濾空值；保留必填欄位即使空也要送 (送空才好定位錯誤)
     keep = {"1000320", "1000322"}
