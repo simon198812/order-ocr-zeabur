@@ -461,6 +461,16 @@ def _pick_customer(items: list[dict]) -> tuple[str, str]:
             return code, cat
     return "", ""
 
+def _find_product_by_name(name: str) -> dict:
+    """從商品清單找對應商品；找不到回空 dict。"""
+    if not name:
+        return {}
+    target = str(name).strip()
+    for p in _ragic_load_products():
+        if p.get("name") == target:
+            return p
+    return {}
+
 def _find_customer_by_code(code: str) -> dict:
     """從 customerList 找對應客戶；找不到回空 dict。"""
     if not code:
@@ -545,6 +555,12 @@ def _build_ragic_payload(po_no: str, items: list[dict]) -> dict:
         product_name = str(it.get("ragic_product_name", "") or "").strip() \
                        or str(it.get("item", "") or "")
         payload[f"1000332_{rid}"] = product_name
+        # 單位 (載入欄位)：Ragic API 寫入連結欄位不會自動觸發載入，需明確帶值。
+        # 優先用商品主檔的單位，其次 OCR 抓到的
+        prod = _find_product_by_name(product_name)
+        unit = (prod.get("unit") or "").strip() or str(it.get("unit", "") or "").strip()
+        if unit:
+            payload[f"1000342_{rid}"] = unit
         payload[f"1000334_{rid}"] = "" if qty in (None, "", 0) else str(qty)
         payload[f"1000333_{rid}"] = "" if price in (None, "", 0) else str(price)
         # 子表備註：合約品項附上資材代碼，方便人工對帳追溯
