@@ -51,6 +51,7 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .result-filename{font-weight:600;color:#333;font-size:.92rem}
 .result-badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:3px 12px;border-radius:16px;font-size:.78rem;font-weight:600}
 .result-badge.error{background:#ff7675}
+.token-tag{background:#eef1f6;color:#8a94a6;padding:2px 9px;border-radius:12px;font-size:.72rem;margin-right:6px}
 .order-card{background:#f8f9fa;padding:12px 14px;border-radius:8px;margin-bottom:8px;border-left:3px solid #764ba2;font-size:.85rem}
 .order-label{font-weight:600;color:#667eea;min-width:150px;display:inline-block;vertical-align:top;padding-top:5px;font-size:.84rem}
 .editable-field{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 160px);display:inline-block;transition:border .2s}
@@ -202,6 +203,10 @@ const DISPLAY_FIELDS = [
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.0.1', title: 'Token 用量顯示', items: [
+    '每份檔案辨識後顯示 Gemini token 用量，方便追蹤成本',
+    '/health 可查本次啟動後的累計用量',
+  ]},
   { v: '3.0.0', title: '品名核對一次搞定', items: [
     '品名比對會列出 3 個相似候選，點一下就能切換',
     '不同尺寸的地方會黃底反白，例如 70x50x85 vs 80x50x90',
@@ -1169,7 +1174,11 @@ function displayResults(resultsData, showSubmit) {
         globalIdx++;
       });
 
-      div.innerHTML = `<div class="result-header"><span class="result-filename">✅ ${r.filename}</span><span class="result-badge">${r.items_count} 品項</span></div>${ordersHTML}`;
+      const tk = r.tokens || {};
+      const tkTag = (tk.input || tk.output)
+        ? `<span class="token-tag" title="本次 Gemini OCR 的 token 用量">${(tk.input||0).toLocaleString()} in / ${(tk.output||0).toLocaleString()} out</span>`
+        : '';
+      div.innerHTML = `<div class="result-header"><span class="result-filename">✅ ${r.filename}</span><span>${tkTag}<span class="result-badge">${r.items_count} 品項</span></span></div>${ordersHTML}`;
     }
     el.appendChild(div);
   });
