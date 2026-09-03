@@ -103,9 +103,10 @@ h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;fo
 <body>
 <nav class="sf-nav">
   <span class="sf-brand">尚鋒工具</span>
-  <a href="/" class="on">📄 OCR 訂單</a>
-  <a href="/tools">🛠️ 工作工具箱</a>
-  <a href="/quote">📐 估價台</a>
+  <a href="/" class="on">OCR</a>
+  <a href="/tools#sus304">板材計算</a>
+  <a href="/tools#calc">利潤計算機</a>
+  <a href="/quote">估價台</a>
 </nav>
 <div class="container">
   <h1>📄 OCR 訂單處理系統</h1>
@@ -245,6 +246,11 @@ function displayFieldsFor(order) {
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.3.2', title: '導覽列改為四個工具', items: [
+    '上方導覽列直接列出：OCR、板材計算、利潤計算機、估價台',
+    '點板材計算或利潤計算機會直接開到該功能，不必再切分頁',
+    '工具箱內原本重複的 OCR 分頁已移除',
+  ]},
   { v: '3.3.1', title: '三頁視覺統一', items: [
     '三個工具改用同一份樣式基準，版面寬度、字級、圓角、卡片一致',
     '導覽列改為全寬置頂，三頁位置與行為相同',
