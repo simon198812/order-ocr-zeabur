@@ -19,6 +19,7 @@ import hmac
 import re
 import secrets
 import tempfile
+import threading
 from datetime import datetime
 from functools import lru_cache
 from typing import Optional
@@ -38,7 +39,7 @@ load_dotenv()
 
 # ------------------- 版本 -------------------
 # 改動功能時手動遞增；啟動時間可用來確認部署是否已生效
-APP_VERSION = "3.0.1"
+APP_VERSION = "3.1.0"
 STARTED_AT = datetime.now().strftime("%Y/%m/%d %H:%M")
 
 # Gemini token 用量累計 (自本次啟動起)，供成本追蹤
@@ -47,6 +48,8 @@ TOKEN_USAGE = {"calls": 0, "input": 0, "output": 0}
 # ------------------- 環境變數 -------------------
 GEMINI_API_KEY          = os.getenv("GEMINI_API_KEY", "").strip()
 GEMINI_MODEL            = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
+# 交叉驗證用的第二個模型 (較便宜)。設為空字串即停用驗證
+GEMINI_VERIFY_MODEL     = os.getenv("GEMINI_VERIFY_MODEL", "gemini-3.5-flash-lite").strip()
 GOOGLE_SHEET_ID         = os.getenv("GOOGLE_SHEET_ID", "").strip()
 GOOGLE_SHEET_TAB        = os.getenv("GOOGLE_SHEET_TAB", "工作表1").strip()
 GOOGLE_CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON", "").strip()
@@ -254,8 +257,10 @@ def _try_recover_truncated_json(text: str) -> Optional[str]:
 # ------------------- OCR 核心 -------------------
 _last_usage = {"input": 0, "output": 0}
 
-def extract_orders_from_file(file_bytes: bytes, filename: str) -> list[dict]:
-    """用 Gemini 從檔案 (圖片/PDF) 萃取訂單資料"""
+def extract_orders_from_file(file_bytes: bytes, filename: str,
+                             model: Optional[str] = None) -> list[dict]:
+    """用 Gemini 從檔案 (圖片/PDF) 萃取訂單資料。
+    model 可指定模型，預設用 GEMINI_MODEL。"""
     ext = os.path.splitext(filename)[1].lower()
     mime = SUPPORTED_MIME.get(ext)
     if not mime:
@@ -279,8 +284,9 @@ def extract_orders_from_file(file_bytes: bytes, filename: str) -> list[dict]:
             PROMPT,
         ]
 
+    use_model = model or GEMINI_MODEL
     response = client.models.generate_content(
-        model=GEMINI_MODEL,
+        model=use_model,
         contents=contents,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -326,6 +332,77 @@ def extract_orders_from_file(file_bytes: bytes, filename: str) -> list[dict]:
     # 格式後處理
     orders = [_clean_order(o) for o in orders]
     return orders
+
+
+# ------------------- 雙模型交叉驗證 -------------------
+# 數值欄位比對時要容許 "10" vs "10.0" 這種格式差異
+_NUMERIC_FIELDS = {"qty", "price", "total", "order_total", "warranty"}
+
+def _norm_for_compare(field: str, value) -> str:
+    """把值正規化成可比對的字串。數值去掉小數尾零，文字去空白。"""
+    v = "" if value is None else str(value).strip()
+    if field in _NUMERIC_FIELDS:
+        try:
+            f = float(v or 0)
+            return str(int(f)) if f == int(f) else str(f)
+        except (ValueError, TypeError):
+            return v
+    return re.sub(r"\s+", "", v)
+
+def compare_orders(primary: list, verify: list) -> list:
+    """逐品項逐欄位比對兩個模型的結果。
+    回傳與 primary 等長的清單，每項是 {欄位: 驗證模型的值} — 只含不一致的欄位。
+    品項數不同時，多出來的品項標記為整筆缺漏。"""
+    diffs = []
+    for i, p in enumerate(primary):
+        d = {}
+        if i >= len(verify):
+            # 驗證模型沒抓到這個品項
+            d["__missing__"] = "驗證模型沒有抓到這個品項"
+            diffs.append(d)
+            continue
+        v = verify[i]
+        for field in SHEET_COLUMNS:
+            pv = _norm_for_compare(field, p.get(field))
+            vv = _norm_for_compare(field, v.get(field))
+            if pv != vv:
+                d[field] = "" if v.get(field) is None else str(v.get(field))
+        diffs.append(d)
+    return diffs
+
+def extract_with_verification(file_bytes: bytes, filename: str) -> tuple:
+    """主模型 + 驗證模型平行辨識，回傳 (orders, diffs, usage)。
+    驗證模型失敗不影響主結果 (best-effort)。"""
+    primary_usage = {"input": 0, "output": 0}
+    verify_usage = {"input": 0, "output": 0}
+
+    if not GEMINI_VERIFY_MODEL:
+        orders = extract_orders_from_file(file_bytes, filename)
+        return orders, [], {"primary": dict(_last_usage), "verify": verify_usage}
+
+    result = {}
+    def run(key, model):
+        try:
+            result[key] = extract_orders_from_file(file_bytes, filename, model=model)
+            result[key + "_usage"] = dict(_last_usage)
+        except Exception as e:
+            result[key + "_error"] = e
+
+    # 平行跑，總耗時約等於較慢的那個，不會加倍
+    t1 = threading.Thread(target=run, args=("primary", GEMINI_MODEL))
+    t2 = threading.Thread(target=run, args=("verify", GEMINI_VERIFY_MODEL))
+    t1.start(); t2.start(); t1.join(); t2.join()
+
+    if "primary_error" in result:
+        raise result["primary_error"]        # 主模型失敗才算失敗
+    orders = result.get("primary", [])
+    primary_usage = result.get("primary_usage", primary_usage)
+    verify_usage = result.get("verify_usage", verify_usage)
+
+    diffs = []
+    if "verify" in result:
+        diffs = compare_orders(orders, result["verify"])
+    return orders, diffs, {"primary": primary_usage, "verify": verify_usage}
 
 # ------------------- Sheet 寫入 -------------------
 def orders_to_rows(orders: list[dict]) -> list[list]:
@@ -1397,7 +1474,7 @@ async def preview(files: list[UploadFile] = File(...)):
             content = await file.read()
             if len(content) > 20 * 1024 * 1024:
                 raise ValueError("檔案超過 20MB")
-            orders = extract_orders_from_file(content, file.filename)
+            orders, diffs, usage = extract_with_verification(content, file.filename)
             # 標記每筆 order 的來源檔案，submit 時用來找對應的 PDF 上傳到 Ragic
             for o in orders:
                 o["_filename"] = file.filename
@@ -1406,7 +1483,9 @@ async def preview(files: list[UploadFile] = File(...)):
                 "status": "success",
                 "orders": orders,
                 "items_count": len(orders),
-                "tokens": dict(_last_usage),
+                "diffs": diffs,                      # 雙模型不一致的欄位
+                "tokens": usage,
+                "verify_model": GEMINI_VERIFY_MODEL,
             })
         except Exception as e:
             results.append({

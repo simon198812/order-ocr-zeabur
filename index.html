@@ -78,6 +78,12 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .match-alt .sc{color:#888;font-size:.74rem;margin-left:6px}
 .match-alt .hist{color:#c8860d;font-size:.74rem;margin-left:4px}
 .diff-hi{background:#ffe9a8;border-radius:2px;padding:0 2px;font-weight:600}
+.editable-field.is-disputed{background:#fffbe6;border-color:#faad14;border-width:2px}
+.verify-tag{display:inline-block;margin-left:8px;font-size:.75rem;color:#d48806;cursor:pointer;background:#fff7e6;border:1px solid #ffd591;border-radius:5px;padding:1px 8px}
+.verify-tag:hover{background:#ffe7ba}
+.verify-summary{background:#fffbe6;border-left:4px solid #faad14;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.82rem;color:#874d00}
+.verify-summary b{color:#613400}
+.verify-ok{background:#f6ffed;border-left-color:#52c41a;color:#237804}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none !important}
@@ -203,6 +209,13 @@ const DISPLAY_FIELDS = [
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.1.0', title: '雙模型交叉驗證', items: [
+    '同一份檔案由兩個 AI 模型各辨識一次，逐欄位比對',
+    '兩邊答案不同的欄位用黃框標出，其餘可放心略過',
+    '點「驗證模型」標籤即可改用它的答案',
+    '兩個模型平行跑，辨識速度不受影響',
+    '驗證模型較便宜，每月成本約多兩成',
+  ]},
   { v: '3.0.1', title: 'Token 用量顯示', items: [
     '每份檔案辨識後顯示 Gemini token 用量，方便追蹤成本',
     '/health 可查本次啟動後的累計用量',
@@ -1063,6 +1076,9 @@ function displayResults(resultsData, showSubmit) {
       div.innerHTML = `<div class="result-header"><span class="result-filename">❌ ${r.filename}</span><span class="result-badge error">失敗</span></div><div style="color:#d63031;font-size:.88rem">${r.message}</div>`;
     } else {
       const orders = r.orders||[];
+      // 雙模型驗證：把不一致的欄位掛到每筆 order 上
+      const rDiffs = r.diffs || [];
+      orders.forEach((o, oi) => { o._diff = rDiffs[oi] || {}; });
       // 初始化新欄位：ragic_po 預設空、ragic_customer_code 預設用 hospital 模糊匹配
       // vendor 用 3 選項標準化 (含 OCR 誤識別容錯)
       orders.forEach(o => {
@@ -1160,12 +1176,21 @@ function displayResults(resultsData, showSubmit) {
               ${hint}
             </div>`;
           } else {
+            // 雙模型驗證：這個欄位兩邊看法不同 → 標黃並附上驗證模型的答案
+            const dv = (o._diff || {})[k];
+            const disputed = dv !== undefined;
+            const vTag = disputed
+              ? `<span class="verify-tag" data-order-idx="${globalIdx}" data-field="${k}"
+                       data-val="${String(dv).replace(/"/g,'&quot;')}"
+                       title="點一下改用驗證模型的答案">驗證模型: ${_ESC(dv) || '(空)'}</span>`
+              : '';
             ordersHTML += `<div class="field-row">
               <span class="order-label">${label}:</span>
-              <input type="text" class="editable-field${isEmpty ? ' is-empty' : ''}"
+              <input type="text" class="editable-field${isEmpty ? ' is-empty' : ''}${disputed ? ' is-disputed' : ''}"
                      value="${String(val).replace(/"/g,'&quot;')}"
                      data-order-idx="${globalIdx}" data-field="${k}"
                      ${isEmpty ? 'placeholder="（未抓到，請補）"' : ''}>
+              ${vTag}
             </div>`;
           }
         });
@@ -1178,7 +1203,15 @@ function displayResults(resultsData, showSubmit) {
       const tkTag = (tk.input || tk.output)
         ? `<span class="token-tag" title="本次 Gemini OCR 的 token 用量">${(tk.input||0).toLocaleString()} in / ${(tk.output||0).toLocaleString()} out</span>`
         : '';
-      div.innerHTML = `<div class="result-header"><span class="result-filename">✅ ${r.filename}</span><span>${tkTag}<span class="result-badge">${r.items_count} 品項</span></span></div>${ordersHTML}`;
+      // 驗證摘要：這份檔案有幾個欄位兩個模型看法不同
+      let vSummary = '';
+      if (r.verify_model) {
+        const nDiff = rDiffs.reduce((a, d) => a + Object.keys(d || {}).length, 0);
+        vSummary = nDiff
+          ? `<div class="verify-summary">🔍 雙模型交叉驗證：有 <b>${nDiff}</b> 個欄位兩邊看法不同，已用黃框標出。點「驗證模型」標籤可改用它的答案。</div>`
+          : `<div class="verify-summary verify-ok">✅ 雙模型交叉驗證：全部欄位一致，可放心送出。</div>`;
+      }
+      div.innerHTML = `<div class="result-header"><span class="result-filename">✅ ${r.filename}</span><span>${tkTag}<span class="result-badge">${r.items_count} 品項</span></span></div>${vSummary}${ordersHTML}`;
     }
     el.appendChild(div);
   });
@@ -1256,6 +1289,23 @@ function displayResults(resultsData, showSubmit) {
 
 // 點擊「其他相似候選」→ 切換該筆品名。
 // 用事件委派，這樣候選面板重繪後 (換客戶/廠商) 仍然有效。
+// 點「驗證模型」標籤 → 採用驗證模型的答案
+$('results').addEventListener('click', e => {
+  const tag = e.target.closest('.verify-tag');
+  if (!tag) return;
+  const idx = parseInt(tag.dataset.orderIdx);
+  const field = tag.dataset.field;
+  const input = document.querySelector(
+    `.editable-field[data-order-idx="${idx}"][data-field="${field}"]`);
+  if (!input) return;
+  input.value = tag.dataset.val || '';
+  input.classList.remove('is-disputed');
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  tag.remove();
+  collectEdits();
+  renderRagicSummary();
+});
+
 $('results').addEventListener('click', e => {
   const btn = e.target.closest('.match-alt');
   if (!btn) return;
