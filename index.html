@@ -11,7 +11,7 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:var(--sans);font-size:var(--fs-base);background:var(--bg);min-height:100vh}
-.container{margin:20px auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:28px 32px 36px;max-width:var(--page-w);width:100%}
+.container{margin:0 auto;padding:28px 20px 60px;max-width:var(--page-w);width:100%}
 h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;font-family:'Noto Serif TC','Songti TC',PMingLiU,serif;font-weight:700;letter-spacing:.5px}
 .subtitle{text-align:center;color:var(--fg-soft);margin-bottom:8px;font-size:.92rem}
 .sort-info{text-align:center;color:var(--fg-muted);font-size:.8rem;margin-bottom:20px;background:var(--accent);border-radius:8px;padding:7px 12px;border-left:3px solid var(--primary)}
@@ -246,6 +246,9 @@ function displayFieldsFor(order) {
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.3.3', title: 'OCR 頁版面對齊其他分頁', items: [
+    'OCR 頁的內容不再多包一層卡片，左右邊界與其他分頁一致',
+  ]},
   { v: '3.3.2', title: '導覽列改為四個工具', items: [
     '上方導覽列直接列出：OCR、板材計算、利潤計算機、估價台',
     '點板材計算或利潤計算機會直接開到該功能，不必再切分頁',
