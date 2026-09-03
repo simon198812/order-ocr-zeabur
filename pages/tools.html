@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>工作多功能工具箱</title>
+<style>
+/* 尚鋒配色主題 — 依 sfinc-website-next/BRAND.md */
+:root{
+  --brand:#2D6B3D; --brand-dark:#1F4F2D; --brand-light:#4A9A4F; --brand-soft:#9CCFA3;
+  --gold:#B8956A; --gold-soft:#D4BB95;
+  --bg:#FAFBF9; --bg-soft:#EEF4EE; --bg-deep:#F4F6F2; --card:#fff;
+  --fg:#1A2E22; --fg-soft:#4A5953; --fg-muted:#7A857F; --line:#DDE5DD;
+  --danger:#B3261E; --radius:.25rem;
+}
+/* 共用導覽列 */
+.sf-nav{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:4px;position:sticky;top:0;z-index:50}
+.sf-nav .sf-brand{font-family:'Noto Serif TC','Songti TC',serif;font-weight:700;color:var(--fg);font-size:15px;margin-right:18px;padding:12px 0;white-space:nowrap}
+.sf-nav a{color:var(--fg-soft);text-decoration:none;font-size:13px;padding:12px 14px;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
+.sf-nav a:hover{color:var(--brand);background:var(--bg-soft)}
+.sf-nav a.on{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
+@media print{.sf-nav{display:none!important}}
+</style>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--fg);font-size:14px}
+.header{background:var(--bg-soft);color:var(--fg);padding:14px 24px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.header h1{font-size:18px;font-weight:700;font-family:'Noto Serif TC','Songti TC',serif}
+.tabs{display:flex;background:#fff;border-bottom:2px solid var(--line);overflow-x:auto}
+.tab{padding:12px 20px;cursor:pointer;font-size:13px;white-space:nowrap;border-bottom:3px solid transparent;color:var(--fg-soft);transition:.2s}
+.tab:hover{background:var(--bg-soft);color:var(--brand)}
+.tab.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
+.page{display:none;padding:20px;max-width:960px;margin:0 auto}
+.page.active{display:block}
+.card{background:#fff;border-radius:8px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.card-title{font-size:15px;color:var(--brand);font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px}
+.note{font-size:11px;color:var(--fg-muted);margin-bottom:12px}
+label{display:block;font-size:11px;color:var(--fg-soft);margin-bottom:3px}
+input[type=number],input[type=text],input[type=range]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:4px;font-size:13px;font-family:inherit}
+input[type=range]{padding:4px 0;cursor:pointer}
+input:focus{outline:none;border-color:var(--brand)}
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+.btn{padding:7px 16px;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-family:inherit;transition:.15s}
+.btn-blue{background:var(--brand);color:#fff}.btn-blue:hover{background:var(--brand-dark)}
+.btn-green{background:var(--brand-light);color:#fff}.btn-green:hover{background:var(--brand-dark)}
+.btn-red{background:var(--danger);color:#fff}.btn-red:hover{background:var(--danger)}
+.btn-gray{background:var(--bg-deep);color:var(--fg)}.btn-gray:hover{background:var(--line)}
+.btn-sm{padding:4px 10px;font-size:12px}
+.flex-gap{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{background:var(--bg-soft);padding:7px 6px;border:1px solid var(--line);font-weight:700;text-align:center;white-space:nowrap}
+td{padding:5px 6px;border:1px solid var(--line);text-align:center;vertical-align:middle}
+td input{border:none;background:transparent;text-align:center;width:100%;font-size:12px;font-family:inherit}
+td input:focus{outline:1px solid var(--brand);background:#fff;border-radius:2px}
+tbody tr:hover{background:var(--bg-deep)}
+.foot-row td{background:var(--bg-soft);font-weight:700;font-size:13px}
+.drop-zone{border:2px dashed var(--brand-soft);border-radius:8px;padding:28px;text-align:center;cursor:pointer;background:var(--bg-deep);transition:.2s}
+.drop-zone:hover,.drop-zone.over{border-color:var(--brand);background:var(--bg-soft)}
+.slrow{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.slrow label{width:140px;flex-shrink:0;font-size:12px;color:var(--fg-soft)}
+.slrow input[type=range]{flex:1}
+.slrow span{width:36px;text-align:right;font-size:12px;color:var(--brand);font-weight:700}
+.a4page{background:#fff;margin:0 auto 12px;border:1px solid var(--fg-muted);display:grid}
+.cell{overflow:hidden;border:1px solid #000;display:flex;align-items:center;justify-content:center;background:#fff;margin:-0.5px}
+.cell img{width:100%;height:100%;object-fit:contain;display:block}
+.cell.empty{background:#f8f8f8}
+.ext-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.ext-card{border:2px dashed var(--line);border-radius:8px;padding:18px;text-align:center;cursor:pointer;transition:.2s;color:var(--fg-muted)}
+.ext-card:hover{border-color:var(--brand);color:var(--brand);background:var(--bg-soft)}
+.ext-card .icon{font-size:30px;margin-bottom:6px}
+#imgStatus{font-size:12px;color:var(--fg-soft);margin-top:8px;min-height:18px}
+#printArea{background:var(--line);padding:12px;border-radius:6px;margin-top:14px}
+.profit-quick{background:var(--bg-deep);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:20px}
+@media print{
+  body>*{display:none!important}
+  #printMount{display:block!important;position:fixed;top:0;left:0;width:100%;background:#fff}
+  .a4page{width:210mm;height:297mm;margin:0;border:none;page-break-after:always;box-shadow:none}
+  .cell{border:0.5px solid #000}
+  #printArea{background:none;padding:0}
+  .no-print{display:none!important}
+}
+</style>
+</head>
+<body>
+<nav class="sf-nav">
+  <span class="sf-brand">尚鋒工具</span>
+  <a href="/">📄 OCR 訂單</a>
+  <a href="/tools" class="on">🛠️ 工作工具箱</a>
+  <a href="/quote">📐 估價台</a>
+</nav>
+
+<div class="header">
+  <span style="font-size:22px">🛠️</span>
+  <h1>工作多功能工具箱</h1>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="go('sus304',0)">⚙️ SUS304 計算</div>
+  <div class="tab" onclick="go('img',1)">🖼️ 圖片排版列印</div>
+  <div class="tab" onclick="go('ocr',2)">📄 OCR 訂單辨識</div>
+  <div class="tab" onclick="go('calc',3)">🧮 利潤計算機</div>
+  <div class="tab" onclick="go('ext',4)">➕ 擴充工具</div>
+</div>
+
+<!-- ===== SUS304 ===== -->
+<div id="page-sus304" class="page active">
+  <div class="card">
+    <div class="card-title">⚙️ 不銹鋼 SUS304 板材計算器</div>
+    <div class="note">密度 7.93 g/cm³　｜　重量(kg)=（長+折邊長）×（寬+折邊寬）×厚(mm³)×7.93÷1,000,000</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>品名/規格</th>
+          <th>厚(mm)</th>
+          <th>長(mm)</th><th>折邊長(mm)</th>
+          <th>寬(mm)</th><th>折邊寬(mm)</th>
+          <th>數量(片)</th>
+          <th>材積(cm³)</th><th>重量(kg)</th><th>單價(元/kg)</th><th>小計(元)</th>
+          <th class="no-print">操作</th>
+        </tr></thead>
+        <tbody id="susBody"></tbody>
+        <tfoot>
+          <tr class="foot-row">
+            <td colspan="8" style="text-align:right;padding-right:10px">合　計</td>
+            <td id="totVol">0.000</td><td id="totKg">0.000</td><td>—</td><td id="totAmt">0</td>
+            <td class="no-print"></td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="flex-gap no-print">
+      <button class="btn btn-blue" onclick="addSusRow()">＋ 新增一列</button>
+      <button class="btn btn-green" onclick="window.print()">🖨️ 列印</button>
+      <button class="btn btn-red" onclick="clearSus()">🗑️ 清除全部</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 圖片排版列印 ===== -->
+<div id="page-img" class="page">
+  <div class="card no-print">
+    <div class="card-title">🖼️ 圖片黑白加深 + A4 排版列印</div>
+    <div class="note">A4（210×297mm），上下左右各 5mm 邊界，固定 4欄×4列 共16格，格線黑色實線</div>
+    <div style="max-width:180px;margin-bottom:16px">
+      <label>黑框寬度(px)</label>
+      <input type="number" id="gborder" value="5" min="0" max="30" oninput="reprocess()">
+    </div>
+    <div class="slrow"><label>對比度 <small>(1~3)</small></label><input type="range" id="gcontrast" min="1" max="3" step="0.1" value="1.4" oninput="updLbl('gcontrast','lc');reprocess()"><span id="lc">1.4</span></div>
+    <div class="slrow"><label>亮度 <small>(0.1~1.5)</small></label><input type="range" id="gbright" min="0.1" max="1.5" step="0.05" value="0.65" oninput="updLbl('gbright','lb');reprocess()"><span id="lb">0.65</span></div>
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('imgIn').click()">
+      <input type="file" id="imgIn" accept="image/*" multiple style="display:none" onchange="loadFiles(this.files)">
+      <div style="font-size:34px;margin-bottom:6px">📁</div>
+      <div style="color:#666">點擊選擇圖片，或拖曳到此區域</div>
+      <div style="font-size:11px;color:var(--fg-muted);margin-top:4px">支援 JPG · PNG · GIF · WebP，可一次多選</div>
+    </div>
+    <div id="imgStatus"></div>
+    <div class="flex-gap" style="margin-top:12px">
+      <button class="btn btn-blue" onclick="exportPDF()">⬇️ 下載 PDF</button>
+      <button class="btn btn-green" onclick="window.print()">🖨️ 列印</button>
+      <button class="btn btn-red" onclick="clearImgs()">🗑️ 清除</button>
+    </div>
+    <div id="pdfStatus" style="font-size:12px;color:var(--brand);margin-top:6px;min-height:16px"></div>
+  </div>
+  <div id="printMount"><div id="printArea"></div></div>
+</div>
+
+<!-- ===== OCR ===== -->
+<div id="page-ocr" class="page">
+  <div class="card">
+    <div class="card-title">📄 OCR 訂單辨識</div>
+    <div class="note">醫院訂購單自動辨識 → Google Sheet + Ragic 訂單總單</div>
+    <div style="text-align:center;padding:32px 20px">
+      <div style="font-size:46px;margin-bottom:12px">📄</div>
+      <div style="font-size:15px;font-weight:700;color:var(--fg);margin-bottom:6px">OCR 訂單處理系統</div>
+      <div style="font-size:12px;color:var(--fg-soft);margin-bottom:20px;line-height:1.7">
+        上傳 PDF 訂購單，自動辨識 23 個欄位<br>
+        智慧比對客戶與商品，一鍵寫入 Google Sheet 與 Ragic
+      </div>
+      <a href="/" class="btn btn-blue" style="display:inline-block;text-decoration:none;padding:10px 24px">
+        前往 OCR 訂單系統 →
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 利潤計算機 ===== -->
+<div id="page-calc" class="page">
+  <div class="card">
+    <div class="card-title">🧮 利潤率計算機</div>
+    <div class="note">利潤率 =（售價 － 成本）÷ 售價　｜　例：(167－100)÷167 = 40%　真實利潤率</div>
+
+    <div class="profit-quick">
+      <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:12px">⚡ 單筆快算</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:12px">
+        <div><label>成本（元）</label><input type="number" id="qCost" min="0" placeholder="100" oninput="quickCalc()"></div>
+        <div><label>利潤率（%）</label><input type="number" id="qProfit" min="0" max="99.99" placeholder="40" oninput="quickCalc()"></div>
+        <div><label>報價（元）</label><input type="number" id="qPrice" min="0" placeholder="167" oninput="quickCalcRev()"></div>
+      </div>
+      <div id="qResult" style="font-size:13px;color:var(--fg-soft);min-height:20px"></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:700;color:var(--brand);margin-bottom:10px">📋 多筆計算</div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>#</th><th>品名/備註</th>
+          <th>成本（元）</th><th>利潤率（%）</th>
+          <th>報價（元）</th><th>利潤金額（元）</th>
+          <th class="no-print">操作</th>
+        </tr></thead>
+        <tbody id="calcBody"></tbody>
+      </table>
+    </div>
+    <div class="flex-gap no-print">
+      <button class="btn btn-blue" onclick="addCalcRow()">＋ 新增一列</button>
+      <button class="btn btn-green" onclick="window.print()">🖨️ 列印</button>
+      <button class="btn btn-red" onclick="clearCalc()">🗑️ 清除全部</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 擴充工具 ===== -->
+<div id="page-ext" class="page">
+  <div class="card">
+    <div class="card-title">➕ 擴充工具區</div>
+    <div class="note">預留給未來新增工具使用</div>
+    <div class="ext-grid">
+      <div class="ext-card" onclick="alert('可新增：長度/重量/溫度等單位換算')"><div class="icon">📐</div><div class="name">單位換算</div></div>
+      <div class="ext-card" onclick="alert('可新增：自動產生報價單 PDF')"><div class="icon">📋</div><div class="name">報價單產生器</div></div>
+      <div class="ext-card" onclick="alert('可新增：簡易待辦 / 工作清單')"><div class="icon">✅</div><div class="name">待辦清單</div></div>
+      <div class="ext-card" onclick="alert('可新增：工作天 / 到期日計算')"><div class="icon">📅</div><div class="name">日期計算</div></div>
+      <div class="ext-card" onclick="alert('可新增：噸數/公斤/磅換算')"><div class="icon">⚖️</div><div class="name">重量換算</div></div>
+      <div class="ext-card" onclick="alert('可新增：自訂計算公式工具')"><div class="icon">🧮</div><div class="name">自訂計算</div></div>
+    </div>
+  </div>
+</div>
+
+<canvas id="cv" style="display:none"></canvas>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ===== NAV =====
+function go(id,idx){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+}
+
+// ===== SUS304 =====
+const D=7.93; let rid=0;
+function addSusRow(){
+  rid++;
+  const b=document.getElementById('susBody');
+  const tr=document.createElement('tr');
+  tr.id='r'+rid;
+  tr.innerHTML=`<td>${rid}</td>
+    <td><input type="text" placeholder="品名/規格" style="min-width:80px"></td>
+    <td><input type="number" min="0" placeholder="0" oninput="calcSus(${rid})"></td>
+    <td><input type="number" min="0" placeholder="0" oninput="calcSus(${rid})"></td>
+    <td><input type="number" min="0" placeholder="0" oninput="calcSus(${rid})"></td>
+    <td><input type="number" min="0" placeholder="0" oninput="calcSus(${rid})"></td>
+    <td><input type="number" min="0" placeholder="0" oninput="calcSus(${rid})"></td>
+    <td><input type="number" min="1" value="1" oninput="calcSus(${rid})"></td>
+    <td class="v">0.000</td><td class="k">0.000</td>
+    <td><input type="number" min="0" placeholder="0" oninput="calcSus(${rid})"></td>
+    <td class="s">0</td>
+    <td class="no-print"><button class="btn btn-red btn-sm" onclick="delSusRow(${rid})">刪除</button></td>`;
+  b.appendChild(tr);
+  bindSusArrows();
+}
+function calcSus(id){
+  const tr=document.getElementById('r'+id);
+  const ins=tr.querySelectorAll('input[type=number]');
+  const T=+ins[0].value||0;
+  const L=(+ins[1].value||0)+(+ins[2].value||0);
+  const W=(+ins[3].value||0)+(+ins[4].value||0);
+  const qty=+ins[5].value||1, price=+ins[6].value||0;
+  const vol=L*W*T/1000*qty;
+  const kg=vol*D/1000;
+  const sub=kg*price;
+  tr.querySelector('.v').textContent=vol.toFixed(3);
+  tr.querySelector('.k').textContent=kg.toFixed(3);
+  tr.querySelector('.s').textContent=Math.round(sub).toLocaleString();
+  susTotals();
+}
+function susTotals(){
+  let tv=0,tk=0,ta=0;
+  document.querySelectorAll('#susBody tr').forEach(tr=>{
+    tv+=parseFloat(tr.querySelector('.v')?.textContent)||0;
+    tk+=parseFloat(tr.querySelector('.k')?.textContent)||0;
+    ta+=parseFloat(tr.querySelector('.s')?.textContent?.replace(/,/g,''))||0;
+  });
+  document.getElementById('totVol').textContent=tv.toFixed(3);
+  document.getElementById('totKg').textContent=tk.toFixed(3);
+  document.getElementById('totAmt').textContent=Math.round(ta).toLocaleString();
+}
+function delSusRow(id){document.getElementById('r'+id)?.remove();susTotals();bindSusArrows();}
+function clearSus(){if(confirm('確定清除所有資料？')){document.getElementById('susBody').innerHTML='';rid=0;susTotals();}}
+function bindSusArrows(){
+  const tbl=document.getElementById('susBody');
+  const inputs=[...tbl.querySelectorAll('input[type=number]')];
+  inputs.forEach(inp=>{
+    inp.onfocus=()=>inp.value='';
+    inp.onkeydown=e=>{
+      const rows=[...tbl.querySelectorAll('tr')];
+      const ci=inputs.indexOf(inp);
+      const rowIn=r=>[...r.querySelectorAll('input')];
+      if(e.key==='ArrowRight'||(e.key==='Tab'&&!e.shiftKey)){e.preventDefault();inputs[ci+1]?.focus();}
+      else if(e.key==='ArrowLeft'||(e.key==='Tab'&&e.shiftKey)){e.preventDefault();inputs[ci-1]?.focus();}
+      else if(e.key==='ArrowDown'||e.key==='Enter'){
+        e.preventDefault();
+        const tr=inp.closest('tr'),col=rowIn(tr).indexOf(inp),ti=rows.indexOf(tr);
+        if(ti<rows.length-1)rowIn(rows[ti+1])[col]?.focus();
+      }else if(e.key==='ArrowUp'){
+        e.preventDefault();
+        const tr=inp.closest('tr'),col=rowIn(tr).indexOf(inp),ti=rows.indexOf(tr);
+        if(ti>0)rowIn(rows[ti-1])[col]?.focus();
+      }
+    };
+  });
+}
+addSusRow();addSusRow();
+
+// ===== 圖片排版 =====
+const COLS=4,ROWS=4,MX=5,MY=5;
+const CW=(210-MX*2)/COLS, CH=(297-MY*2)/ROWS;
+let rawImgs=[],processedImgs=[];
+
+function updLbl(sid,lid){
+  document.getElementById(lid).textContent=parseFloat(document.getElementById(sid).value).toFixed(2);
+}
+const dz=document.getElementById('dropZone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');loadFiles(e.dataTransfer.files)});
+
+function loadFiles(files){
+  rawImgs=[];processedImgs=[];
+  document.getElementById('imgStatus').textContent='載入中...';
+  const arr=[...files].sort((a,b)=>a.name.localeCompare(b.name));
+  if(!arr.length)return;
+  let done=0;
+  arr.forEach((f,i)=>{
+    const rd=new FileReader();
+    rd.onload=e=>{
+      rawImgs[i]={name:f.name,dataUrl:e.target.result};
+      if(++done===arr.length){
+        document.getElementById('imgStatus').textContent=`已載入 ${done} 張，處理中...`;
+        processAll();
+      }
+    };
+    rd.readAsDataURL(f);
+  });
+}
+function reprocess(){if(rawImgs.length)processAll();}
+function processAll(){
+  const contrast=parseFloat(document.getElementById('gcontrast').value)||1.4;
+  const bright=parseFloat(document.getElementById('gbright').value)||0.65;
+  const border=parseInt(document.getElementById('gborder').value)||5;
+  const cv=document.getElementById('cv');
+  const ctx=cv.getContext('2d');
+  processedImgs=[];
+  let done=0;
+  rawImgs.forEach((r,i)=>{
+    const im=new Image();
+    im.onload=()=>{
+      const bw=im.width+border*2,bh=im.height+border*2;
+      cv.width=bw;cv.height=bh;
+      ctx.fillStyle='#000';ctx.fillRect(0,0,bw,bh);
+      ctx.drawImage(im,border,border,im.width,im.height);
+      const id=ctx.getImageData(0,0,bw,bh);
+      const d=id.data;
+      for(let p=0;p<d.length;p+=4){
+        const g=0.299*d[p]+0.587*d[p+1]+0.114*d[p+2];
+        let c=(g-128)*contrast+128;
+        c=Math.max(0,Math.min(255,c*bright));
+        d[p]=d[p+1]=d[p+2]=c;
+      }
+      ctx.putImageData(id,0,0);
+      processedImgs[i]=cv.toDataURL('image/jpeg',0.92);
+      if(++done===rawImgs.length){
+        document.getElementById('imgStatus').textContent=`共 ${done} 張，已處理完成 ✓`;
+        renderPages();
+      }
+    };
+    im.src=r.dataUrl;
+  });
+}
+function renderPages(){
+  const perPage=COLS*ROWS;
+  const area=document.getElementById('printArea');
+  area.innerHTML='';
+  if(!processedImgs.length)return;
+  const pages=Math.ceil(processedImgs.length/perPage);
+  for(let pg=0;pg<pages;pg++){
+    const div=document.createElement('div');
+    div.className='a4page';
+    div.style.gridTemplateColumns=`repeat(${COLS},${CW}mm)`;
+    div.style.gridTemplateRows=`repeat(${ROWS},${CH}mm)`;
+    div.style.width='210mm';div.style.height='297mm';
+    div.style.padding=`${MY}mm ${MX}mm`;
+    div.style.boxSizing='border-box';
+    for(let c=0;c<perPage;c++){
+      const idx=pg*perPage+c;
+      const cell=document.createElement('div');
+      cell.className='cell'+(idx>=processedImgs.length?' empty':'');
+      if(idx<processedImgs.length){
+        const img=document.createElement('img');
+        img.src=processedImgs[idx];
+        cell.appendChild(img);
+      }
+      div.appendChild(cell);
+    }
+    area.appendChild(div);
+  }
+}
+async function exportPDF(){
+  if(!processedImgs.length){alert('請先上傳圖片');return;}
+  const st=document.getElementById('pdfStatus');
+  st.textContent='產生 PDF 中...';
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+  const perPage=COLS*ROWS, LINE=0.3;
+  const pages=Math.ceil(processedImgs.length/perPage);
+  for(let pg=0;pg<pages;pg++){
+    if(pg>0)pdf.addPage('a4','p');
+    for(let c=0;c<perPage;c++){
+      const idx=pg*perPage+c;
+      const col=c%COLS,row=Math.floor(c/COLS);
+      const x=MX+col*CW,y=MY+row*CH;
+      pdf.setDrawColor(0);pdf.setLineWidth(LINE);
+      pdf.rect(x,y,CW,CH,'S');
+      if(idx<processedImgs.length)
+        pdf.addImage(processedImgs[idx],'JPEG',x+LINE,y+LINE,CW-LINE*2,CH-LINE*2);
+    }
+  }
+  pdf.save('排版圖片.pdf');
+  st.textContent='✅ 下載完成！';
+  setTimeout(()=>st.textContent='',3000);
+}
+function clearImgs(){
+  rawImgs=[];processedImgs=[];
+  document.getElementById('printArea').innerHTML='';
+  document.getElementById('imgStatus').textContent='';
+  document.getElementById('imgIn').value='';
+}
+
+// ===== 利潤計算機 =====
+function quickCalc(){
+  const cost=parseFloat(document.getElementById('qCost').value);
+  const pct=parseFloat(document.getElementById('qProfit').value);
+  if(!isNaN(cost)&&!isNaN(pct)&&pct<100&&pct>=0){
+    const price=cost/(1-pct/100);
+    document.getElementById('qPrice').value=price.toFixed(1);
+    document.getElementById('qResult').innerHTML=
+      `報價 <b>${price.toFixed(1)}</b> 元，利潤金額 <b>${(price-cost).toFixed(1)}</b> 元`;
+  }
+}
+function quickCalcRev(){
+  const cost=parseFloat(document.getElementById('qCost').value);
+  const price=parseFloat(document.getElementById('qPrice').value);
+  if(!isNaN(cost)&&!isNaN(price)&&price>0){
+    const pct=(price-cost)/price*100;
+    document.getElementById('qProfit').value=pct.toFixed(2);
+    document.getElementById('qResult').innerHTML=
+      `利潤率 <b>${pct.toFixed(2)}%</b>，利潤金額 <b>${(price-cost).toFixed(1)}</b> 元`;
+  }
+}
+
+let crid=0;
+function addCalcRow(){
+  crid++;
+  const b=document.getElementById('calcBody');
+  const tr=document.createElement('tr');
+  tr.id='cr'+crid;
+  const id=crid;
+  tr.innerHTML=`<td>${id}</td>
+    <td><input type="text" placeholder="品名/備註" style="min-width:80px"></td>
+    <td><input type="number" min="0" placeholder="100" oninput="calcRow(${id},'cost')"></td>
+    <td><input type="number" min="0" max="99.99" step="0.01" placeholder="40" oninput="calcRow(${id},'pct')"></td>
+    <td><input type="number" min="0" placeholder="167" oninput="calcRow(${id},'price')"></td>
+    <td class="cm" style="font-weight:700;color:#34a853">—</td>
+    <td class="no-print"><button class="btn btn-red btn-sm" onclick="document.getElementById('cr${id}')?.remove()">刪除</button></td>`;
+  b.appendChild(tr);
+  bindCalcArrows();
+}
+function calcRow(id,changed){
+  const tr=document.getElementById('cr'+id);
+  const ins=tr.querySelectorAll('input[type=number]');
+  const cost=parseFloat(ins[0].value),pct=parseFloat(ins[1].value),price=parseFloat(ins[2].value);
+  let margin=0;
+  if(changed==='cost'||changed==='pct'){
+    if(!isNaN(cost)&&!isNaN(pct)&&pct<100){
+      const p=cost/(1-pct/100);
+      ins[2].value=p.toFixed(1);
+      margin=p-cost;
+    }
+  }else if(changed==='price'){
+    if(!isNaN(cost)&&!isNaN(price)&&price>0){
+      ins[1].value=((price-cost)/price*100).toFixed(2);
+      margin=price-cost;
+    }
+  }
+  tr.querySelector('.cm').textContent=margin>0?margin.toFixed(1)+' 元':'—';
+}
+function clearCalc(){if(confirm('確定清除？')){document.getElementById('calcBody').innerHTML='';crid=0;}}
+function bindCalcArrows(){
+  const tbl=document.getElementById('calcBody');
+  const inputs=[...tbl.querySelectorAll('input[type=number]')];
+  inputs.forEach(inp=>{
+    inp.onfocus=()=>inp.value='';
+    inp.onkeydown=e=>{
+      const rows=[...tbl.querySelectorAll('tr')];
+      const ci=inputs.indexOf(inp);
+      const rowIn=r=>[...r.querySelectorAll('input')];
+      if(e.key==='ArrowRight'||(e.key==='Tab'&&!e.shiftKey)){e.preventDefault();inputs[ci+1]?.focus();}
+      else if(e.key==='ArrowLeft'||(e.key==='Tab'&&e.shiftKey)){e.preventDefault();inputs[ci-1]?.focus();}
+      else if(e.key==='ArrowDown'||e.key==='Enter'){
+        e.preventDefault();
+        const tr=inp.closest('tr'),col=rowIn(tr).indexOf(inp),ti=rows.indexOf(tr);
+        if(ti<rows.length-1)rowIn(rows[ti+1])[col]?.focus();
+      }else if(e.key==='ArrowUp'){
+        e.preventDefault();
+        const tr=inp.closest('tr'),col=rowIn(tr).indexOf(inp),ti=rows.indexOf(tr);
+        if(ti>0)rowIn(rows[ti-1])[col]?.focus();
+      }
+    };
+  });
+}
+addCalcRow();addCalcRow();
+</script>
+</body>
+</html>

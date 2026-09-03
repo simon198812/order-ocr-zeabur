@@ -39,7 +39,7 @@ load_dotenv()
 
 # ------------------- 版本 -------------------
 # 改動功能時手動遞增；啟動時間可用來確認部署是否已生效
-APP_VERSION = "3.2.0"
+APP_VERSION = "3.3.0"
 STARTED_AT = datetime.now().strftime("%Y/%m/%d %H:%M")
 
 # Gemini token 用量累計 (自本次啟動起)，供成本追蹤
@@ -1572,7 +1572,18 @@ async def upload_and_submit(files: list[UploadFile] = File(...)):
 # ------------------- 靜態檔案 -------------------
 @app.get("/")
 async def serve_index():
+    """OCR 訂單處理系統 (主頁)"""
     return FileResponse("index.html")
+
+@app.get("/tools")
+async def serve_tools():
+    """工作工具箱：SUS304 計算、圖片排版、利潤計算"""
+    return FileResponse("pages/tools.html")
+
+@app.get("/quote")
+async def serve_quote():
+    """不鏽鋼估價台"""
+    return FileResponse("pages/quote.html")
 
 if os.path.isdir("static"):
     app.mount("/static", StaticFiles(directory="static"), name="static")
