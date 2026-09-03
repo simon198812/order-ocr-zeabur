@@ -130,7 +130,7 @@ h1{font-size:2rem;text-align:center;color:var(--fg);margin-bottom:6px;font-famil
 <body>
 <div class="container">
   <h1>📄 OCR 訂單處理系統</h1>
-  <p class="subtitle">支援 PDF + 圖片 ｜ 一般訂單 &amp; 合約品項自動辨識 ｜ 多品項自動拆分</p>
+  <p class="subtitle">PDF 訂購單辨識 ｜ 一般訂單 &amp; 合約品項 ｜ 多品項自動拆分</p>
   <p class="version-line" id="versionLine"></p>
 
   <div id="loginSection" class="hidden">
@@ -149,14 +149,10 @@ h1{font-size:2rem;text-align:center;color:var(--fg);margin-bottom:6px;font-famil
 
     <div class="upload-area" id="uploadArea">
       <div class="upload-icon">📤</div>
-      <h3 style="color:var(--primary);font-weight:600">拖放檔案到這裡，或點擊選擇</h3>
-      <p style="color:var(--fg-muted);font-size:.85rem;margin-top:4px">最多 20 個檔案，單檔上限 20MB</p>
+      <h3 style="color:var(--primary);font-weight:600">拖放 PDF 到這裡，或點擊選擇</h3>
+      <p style="color:var(--fg-muted);font-size:.85rem;margin-top:4px">最多 20 個 PDF，單檔上限 20MB</p>
       <div class="badges">
         <span class="badge badge-pdf">📑 PDF</span>
-        <span class="badge badge-img">🖼 JPG</span>
-        <span class="badge badge-img">🖼 PNG</span>
-        <span class="badge badge-img">🖼 WEBP</span>
-        <span class="badge badge-img">🖼 BMP</span>
       </div>
     </div>
     <input type="file" id="fileInput" multiple accept="image/*,.pdf">
@@ -271,6 +267,7 @@ function displayFieldsFor(order) {
 // 新版本請加在最前面
 const CHANGELOG = [
   { v: '3.2.0', title: '換上公司品牌主題', items: [
+    '介面文字改為 PDF 專用（實際仍可上傳圖片）',
     '配色改用公司網站的森林綠 + 質感金 + 米白底',
     '標題改用思源宋體、內文思源黑體，與官網一致',
     '欄位順序依訂單類型調整：合約品項與一般訂單各有適合的閱讀動線',
@@ -958,8 +955,7 @@ function handleFiles(files) {
 function renderFileList() {
   $('fileList').innerHTML = '';
   selectedFiles.forEach(f => {
-    const isPDF = f.name.toLowerCase().endsWith('.pdf');
-    $('fileList').innerHTML += `<div class="file-item"><span><b>${isPDF?'📑':'🖼'} ${f.name}</b><span style="color:var(--fg-muted);font-size:.78rem;margin-left:6px">${isPDF?'PDF':'圖片'} · ${(f.size/1024).toFixed(0)}KB</span></span><span style="color:#b8860b;font-size:.8rem">待處理</span></div>`;
+    $('fileList').innerHTML += `<div class="file-item"><span><b>📑 ${f.name}</b><span style="color:var(--fg-muted);font-size:.78rem;margin-left:6px">${(f.size/1024).toFixed(0)}KB</span></span><span style="color:var(--gold);font-size:.8rem">待處理</span></div>`;
   });
 }
 
