@@ -39,7 +39,7 @@ load_dotenv()
 
 # ------------------- 版本 -------------------
 # 改動功能時手動遞增；啟動時間可用來確認部署是否已生效
-APP_VERSION = "3.1.0"
+APP_VERSION = "3.1.1"
 STARTED_AT = datetime.now().strftime("%Y/%m/%d %H:%M")
 
 # Gemini token 用量累計 (自本次啟動起)，供成本追蹤
@@ -370,13 +370,14 @@ def compare_orders(primary: list, verify: list) -> list:
         diffs.append(d)
     return diffs
 
-def extract_with_verification(file_bytes: bytes, filename: str) -> tuple:
-    """主模型 + 驗證模型平行辨識，回傳 (orders, diffs, usage)。
-    驗證模型失敗不影響主結果 (best-effort)。"""
+def extract_with_verification(file_bytes: bytes, filename: str,
+                              enabled: bool = False) -> tuple:
+    """辨識訂單。enabled=True 時額外用便宜模型平行跑一次做交叉驗證。
+    回傳 (orders, diffs, usage)；驗證模型失敗不影響主結果 (best-effort)。"""
     primary_usage = {"input": 0, "output": 0}
     verify_usage = {"input": 0, "output": 0}
 
-    if not GEMINI_VERIFY_MODEL:
+    if not enabled or not GEMINI_VERIFY_MODEL:
         orders = extract_orders_from_file(file_bytes, filename)
         return orders, [], {"primary": dict(_last_usage), "verify": verify_usage}
 
@@ -998,6 +999,7 @@ def health():
         "version": APP_VERSION,
         "started_at": STARTED_AT,
         "token_usage": dict(TOKEN_USAGE),
+        "verify_model": GEMINI_VERIFY_MODEL,
         "gemini_configured": bool(GEMINI_API_KEY),
         "sheet_configured": bool(GOOGLE_CREDENTIALS_JSON),
         "ragic_enabled": RAGIC_ENABLED,
@@ -1465,7 +1467,7 @@ def auth_status(session: Optional[str] = Cookie(None, alias=SESSION_COOKIE)):
             "version": APP_VERSION, "started_at": STARTED_AT}
 
 @app.post("/preview", dependencies=[Depends(require_auth)])
-async def preview(files: list[UploadFile] = File(...)):
+async def preview(files: list[UploadFile] = File(...), verify: int = 0):
     """只做 OCR,不寫入 Sheet。每筆 order 附 _filename 方便 /submit 對應檔案。"""
     files = sorted(files, key=_natural_sort_key)
     results = []
@@ -1474,7 +1476,8 @@ async def preview(files: list[UploadFile] = File(...)):
             content = await file.read()
             if len(content) > 20 * 1024 * 1024:
                 raise ValueError("檔案超過 20MB")
-            orders, diffs, usage = extract_with_verification(content, file.filename)
+            orders, diffs, usage = extract_with_verification(
+                content, file.filename, enabled=bool(verify))
             # 標記每筆 order 的來源檔案，submit 時用來找對應的 PDF 上傳到 Ragic
             for o in orders:
                 o["_filename"] = file.filename
@@ -1485,7 +1488,7 @@ async def preview(files: list[UploadFile] = File(...)):
                 "items_count": len(orders),
                 "diffs": diffs,                      # 雙模型不一致的欄位
                 "tokens": usage,
-                "verify_model": GEMINI_VERIFY_MODEL,
+                "verify_model": GEMINI_VERIFY_MODEL if verify else "",
             })
         except Exception as e:
             results.append({
