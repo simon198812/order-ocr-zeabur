@@ -4,36 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>工作多功能工具箱</title>
+<link rel="stylesheet" href="/static/brand.css">
 <style>
-/* 尚鋒配色主題 — 依 sfinc-website-next/BRAND.md */
-:root{
-  --brand:#2D6B3D; --brand-dark:#1F4F2D; --brand-light:#4A9A4F; --brand-soft:#9CCFA3;
-  --gold:#B8956A; --gold-soft:#D4BB95;
-  --bg:#FAFBF9; --bg-soft:#EEF4EE; --bg-deep:#F4F6F2; --card:#fff;
-  --fg:#1A2E22; --fg-soft:#4A5953; --fg-muted:#7A857F; --line:#DDE5DD;
-  --danger:#B3261E; --radius:.25rem;
-}
-/* 共用導覽列 */
-.sf-nav{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:4px;position:sticky;top:0;z-index:50}
-.sf-nav .sf-brand{font-family:'Noto Serif TC','Songti TC',serif;font-weight:700;color:var(--fg);font-size:15px;margin-right:18px;padding:12px 0;white-space:nowrap}
-.sf-nav a{color:var(--fg-soft);text-decoration:none;font-size:13px;padding:12px 14px;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
-.sf-nav a:hover{color:var(--brand);background:var(--bg-soft)}
-.sf-nav a.on{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
-@media print{.sf-nav{display:none!important}}
 </style>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',sans-serif;background:var(--bg);color:var(--fg);font-size:14px}
+body{font-family:var(--sans);background:var(--bg);color:var(--fg);font-size:var(--fs-base)}
 .header{background:var(--bg-soft);color:var(--fg);padding:14px 24px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
 .header h1{font-size:18px;font-weight:700;font-family:'Noto Serif TC','Songti TC',serif}
 .tabs{display:flex;background:#fff;border-bottom:2px solid var(--line);overflow-x:auto}
-.tab{padding:12px 20px;cursor:pointer;font-size:13px;white-space:nowrap;border-bottom:3px solid transparent;color:var(--fg-soft);transition:.2s}
+.tab{padding:12px 18px;cursor:pointer;font-size:var(--fs-sm);white-space:nowrap;border-bottom:3px solid transparent;color:var(--fg-soft);transition:.2s}
 .tab:hover{background:var(--bg-soft);color:var(--brand)}
 .tab.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
-.page{display:none;padding:20px;max-width:960px;margin:0 auto}
+.page{display:none;padding:24px 20px 36px;max-width:var(--page-w);margin:0 auto}
 .page.active{display:block}
 .card{background:#fff;border-radius:8px;padding:18px 20px;margin-bottom:16px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
-.card-title{font-size:15px;color:var(--brand);font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px}
+.card-title{font-size:var(--fs-h2);color:var(--brand);font-weight:700;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px}
 .note{font-size:11px;color:var(--fg-muted);margin-bottom:12px}
 label{display:block;font-size:11px;color:var(--fg-soft);margin-bottom:3px}
 input[type=number],input[type=text],input[type=range]{width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:4px;font-size:13px;font-family:inherit}

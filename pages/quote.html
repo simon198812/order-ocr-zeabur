@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
 
+<link rel="stylesheet" href="/static/brand.css">
 <style>
 :root{
   --ground:#FAFBF9; --surface:#FFFFFF; --surface-2:#F5F7F8; --sunk:#E4E9EC;
@@ -71,15 +72,15 @@
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
   font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
-.wrap{max-width:1280px;margin:0 auto;padding:28px 20px 60px}
+.wrap{max-width:var(--page-w);margin:0 auto;padding:28px 20px 60px}
 
 .masthead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px;
   padding-bottom:18px;border-bottom:2px solid var(--ink)}
 .mast-main{flex:1 1 320px;min-width:0}
 .eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;
   text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px}
-h1{font-size:clamp(26px,4.4vw,38px);font-weight:900;letter-spacing:.03em;margin:0;
-  line-height:1.15;text-wrap:balance}
+h1{font-family:var(--serif);font-size:var(--fs-h1);font-weight:700;letter-spacing:.02em;margin:0;
+  line-height:1.25;text-wrap:balance}
 .tagline{margin:8px 0 0;color:var(--ink-2);font-size:14px;max-width:58ch}
 .mast-tools{display:flex;gap:8px;flex-wrap:wrap}
 
@@ -491,12 +492,6 @@ dialog.changelog::backdrop{background:rgba(10,14,18,.55)}
   .pd-h{page-break-after:avoid}
 }
 
-.sf-nav{background:#fff;border-bottom:1px solid var(--rule);padding:0 20px;display:flex;align-items:center;gap:4px;position:sticky;top:0;z-index:200}
-.sf-nav .sf-brand{font-family:'Noto Serif TC','Songti TC',serif;font-weight:700;color:var(--ink);font-size:15px;margin-right:18px;padding:12px 0;white-space:nowrap}
-.sf-nav a{color:var(--ink);opacity:.7;text-decoration:none;font-size:13px;padding:12px 14px;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
-.sf-nav a:hover{opacity:1;color:#2D6B3D}
-.sf-nav a.on{opacity:1;color:#2D6B3D;border-bottom-color:#2D6B3D;font-weight:700}
-@media print{.sf-nav{display:none!important}}
 </style>
 </head>
 <body>

@@ -6,40 +6,13 @@
 <title>OCR 訂單處理系統</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="/static/brand.css">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet">
 <style>
-/* 尚鋒配色主題 — 依 sfinc-website-next/BRAND.md */
-:root{
-  /* 品牌綠 */
-  --brand:#2D6B3D;         /* 主色：按鈕、連結、強調 */
-  --brand-dark:#1F4F2D;    /* hover、重點 */
-  --brand-light:#4A9A4F;   /* 亮部 */
-  --brand-soft:#9CCFA3;    /* 卡片 hover 邊框、placeholder */
-  /* 質感金：細線、型號、裝飾 */
-  --gold:#B8956A;
-  --gold-soft:#D4BB95;
-  /* 背景 */
-  --bg:#FAFBF9;            /* 全站背景 */
-  --bg-soft:#EEF4EE;       /* 卡片底、規格框 */
-  --bg-deep:#F4F6F2;       /* 深底 */
-  --card:#fff;
-  /* 文字 */
-  --fg:#1A2E22;            /* 主文字 */
-  --fg-soft:#4A5953;       /* 內文、描述 */
-  --fg-muted:#7A857F;      /* 次要資訊、標籤 */
-  --line:#DDE5DD;          /* 邊框、分隔線 */
-  --danger:#B3261E;
-  --radius:.25rem;
-  /* 相容舊變數名 */
-  --primary:var(--brand); --primary-dark:var(--brand-dark);
-  --primary-light:var(--brand-light); --accent:var(--bg-soft);
-  --muted:var(--bg-deep); --muted-fg:var(--fg-soft);
-  --border:var(--line); --warn:var(--gold); --warn-bg:#FAF6EF;
-}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',-apple-system,sans-serif;background:var(--bg);min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:20px}
-.container{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 2px 16px rgba(26,46,34,.06);padding:40px;max-width:850px;width:100%}
-h1{font-size:2rem;text-align:center;color:var(--fg);margin-bottom:6px;font-family:'Noto Serif TC','Songti TC',PMingLiU,serif;font-weight:700;letter-spacing:.5px}
+body{font-family:var(--sans);font-size:var(--fs-base);background:var(--bg);min-height:100vh}
+.container{margin:20px auto;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow);padding:28px 32px 36px;max-width:var(--page-w);width:100%}
+h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;font-family:'Noto Serif TC','Songti TC',PMingLiU,serif;font-weight:700;letter-spacing:.5px}
 .subtitle{text-align:center;color:var(--fg-soft);margin-bottom:8px;font-size:.92rem}
 .sort-info{text-align:center;color:var(--fg-muted);font-size:.8rem;margin-bottom:20px;background:var(--accent);border-radius:8px;padding:7px 12px;border-left:3px solid var(--primary)}
 .version-line{text-align:center;margin-bottom:14px}
@@ -124,22 +97,17 @@ h1{font-size:2rem;text-align:center;color:var(--fg);margin-bottom:6px;font-famil
 .verify-toggle.on .vt-text{color:var(--primary-dark)}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
-.sf-nav{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:4px;position:sticky;top:0;z-index:50;margin:-20px -20px 20px}
-.sf-nav .sf-brand{font-family:'Noto Serif TC','Songti TC',serif;font-weight:700;color:var(--fg);font-size:15px;margin-right:18px;padding:12px 0;white-space:nowrap}
-.sf-nav a{color:var(--fg-soft);text-decoration:none;font-size:13px;padding:12px 14px;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
-.sf-nav a:hover{color:var(--brand);background:var(--bg-soft)}
-.sf-nav a.on{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
 .hidden{display:none !important}
 </style>
 </head>
 <body>
-<div class="container">
 <nav class="sf-nav">
   <span class="sf-brand">尚鋒工具</span>
   <a href="/" class="on">📄 OCR 訂單</a>
   <a href="/tools">🛠️ 工作工具箱</a>
   <a href="/quote">📐 估價台</a>
 </nav>
+<div class="container">
   <h1>📄 OCR 訂單處理系統</h1>
   <p class="subtitle">PDF 訂購單辨識 ｜ 一般訂單 &amp; 合約品項 ｜ 多品項自動拆分</p>
   <p class="version-line" id="versionLine"></p>
@@ -277,6 +245,11 @@ function displayFieldsFor(order) {
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.3.1', title: '三頁視覺統一', items: [
+    '三個工具改用同一份樣式基準，版面寬度、字級、圓角、卡片一致',
+    '導覽列改為全寬置頂，三頁位置與行為相同',
+    '估價台主標改用思源宋體，與其他頁一致',
+  ]},
   { v: '3.3.0', title: '整合工作工具箱與估價台', items: [
     '新增「工作工具箱」：SUS304 板材計算、圖片排版列印、利潤計算機',
     '新增「不鏽鋼估價台」：完整成本模型與報價試算',
