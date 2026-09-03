@@ -1,0 +1,49 @@
+/* ============================================================
+   尚鋒工具 — 三頁共用視覺基準
+   色票依 sfinc-website-next/BRAND.md
+   只規範共通骨架 (色彩/字級/容器/導覽/按鈕/表單)，
+   各工具的功能性樣式 (估價台 KPI、A4 列印格線等) 保持原樣
+   ============================================================ */
+:root{
+  /* 品牌綠 */
+  --brand:#2D6B3D; --brand-dark:#1F4F2D; --brand-light:#4A9A4F; --brand-soft:#9CCFA3;
+  /* 質感金 */
+  --gold:#B8956A; --gold-soft:#D4BB95;
+  /* 背景 */
+  --bg:#FAFBF9; --bg-soft:#EEF4EE; --bg-deep:#F4F6F2; --card:#fff;
+  /* 文字 */
+  --fg:#1A2E22; --fg-soft:#4A5953; --fg-muted:#7A857F; --line:#DDE5DD;
+  --danger:#B3261E;
+  /* 統一的版面基準 */
+  --page-w:1180px;      /* 內容最大寬 */
+  --radius:4px;         /* 按鈕、輸入框 */
+  --radius-lg:8px;      /* 卡片、區塊 */
+  --fs-base:15px;       /* 內文 */
+  --fs-h1:26px;         /* 頁面主標 */
+  --fs-h2:16px;         /* 區塊標題 */
+  --fs-sm:13px;         /* 次要說明 */
+  --fs-xs:11.5px;       /* 標籤、註解 */
+  --shadow:0 1px 2px rgba(26,46,34,.04), 0 8px 24px -18px rgba(26,46,34,.35);
+  --serif:'Noto Serif TC','Songti TC',PMingLiU,serif;
+  --sans:'Noto Sans TC','PingFang TC','Microsoft JhengHei',system-ui,sans-serif;
+}
+
+/* ---- 共用導覽列 ---- */
+.sf-nav{
+  background:var(--card); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:2px;
+  position:sticky; top:0; z-index:200;
+  padding:0 max(20px, calc((100vw - var(--page-w)) / 2));
+}
+.sf-nav .sf-brand{
+  font-family:var(--serif); font-weight:700; color:var(--fg);
+  font-size:15px; margin-right:20px; padding:13px 0; white-space:nowrap;
+}
+.sf-nav a{
+  color:var(--fg-soft); text-decoration:none; font-size:var(--fs-sm);
+  padding:13px 14px; border-bottom:2px solid transparent;
+  transition:.15s; white-space:nowrap;
+}
+.sf-nav a:hover{color:var(--brand); background:var(--bg-soft)}
+.sf-nav a.on{color:var(--brand); border-bottom-color:var(--brand); font-weight:700}
+@media print{.sf-nav{display:none!important}}
