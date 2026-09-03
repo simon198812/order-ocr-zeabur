@@ -124,11 +124,22 @@ h1{font-size:2rem;text-align:center;color:var(--fg);margin-bottom:6px;font-famil
 .verify-toggle.on .vt-text{color:var(--primary-dark)}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
+.sf-nav{background:var(--card);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:4px;position:sticky;top:0;z-index:50;margin:-20px -20px 20px}
+.sf-nav .sf-brand{font-family:'Noto Serif TC','Songti TC',serif;font-weight:700;color:var(--fg);font-size:15px;margin-right:18px;padding:12px 0;white-space:nowrap}
+.sf-nav a{color:var(--fg-soft);text-decoration:none;font-size:13px;padding:12px 14px;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
+.sf-nav a:hover{color:var(--brand);background:var(--bg-soft)}
+.sf-nav a.on{color:var(--brand);border-bottom-color:var(--brand);font-weight:700}
 .hidden{display:none !important}
 </style>
 </head>
 <body>
 <div class="container">
+<nav class="sf-nav">
+  <span class="sf-brand">尚鋒工具</span>
+  <a href="/" class="on">📄 OCR 訂單</a>
+  <a href="/tools">🛠️ 工作工具箱</a>
+  <a href="/quote">📐 估價台</a>
+</nav>
   <h1>📄 OCR 訂單處理系統</h1>
   <p class="subtitle">PDF 訂購單辨識 ｜ 一般訂單 &amp; 合約品項 ｜ 多品項自動拆分</p>
   <p class="version-line" id="versionLine"></p>
@@ -266,6 +277,12 @@ function displayFieldsFor(order) {
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.3.0', title: '整合工作工具箱與估價台', items: [
+    '新增「工作工具箱」：SUS304 板材計算、圖片排版列印、利潤計算機',
+    '新增「不鏽鋼估價台」：完整成本模型與報價試算',
+    '三個工具共用頂部導覽列，可直接互相切換',
+    '兩個工具都換上尚鋒配色，OCR 功能維持原樣未更動',
+  ]},
   { v: '3.2.0', title: '換上公司品牌主題', items: [
     '介面文字改為 PDF 專用（實際仍可上傳圖片）',
     '配色改用公司網站的森林綠 + 質感金 + 米白底',

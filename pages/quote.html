@@ -1,0 +1,2417 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>不鏽鋼估價台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
+
+<style>
+:root{
+  --ground:#FAFBF9; --surface:#FFFFFF; --surface-2:#F5F7F8; --sunk:#E4E9EC;
+  --ink:#1A2E22; --ink-2:#4C5C68; --ink-3:#7E8D98;
+  --rule:#DDE5DD; --rule-2:#B7C1C8;
+  --accent:#B8956A; --accent-hi:#B87407; --accent-soft:#F6EAD3;
+  --alert:#A83A26; --alert-soft:#F7E3DE;
+  --good:#2D6B3D; --good-soft:#DFEDE6;
+  --focus:#2D6B3D;
+  --headline-bg:#1F4F2D; --headline-ink:#EDF0F2;
+
+  --s-plate:#2D6B3D; --s-tube:#43809A; --s-parts:#74A7BB; --s-scrap:#AAC5CF;
+  --s-outsrc:#8E6BA8; --s-eng:#C8562F; --s-mfg:#B87407; --s-cons:#E6C57E;
+  --s-oh:#6A7883; --s-pack:#98A4AC; --s-freight:#B4BEC5; --s-misc:#C9D1D6;
+
+  --zone-buy:#A83A26; --zone-mid:#C8860D; --zone-make:#2C6A50;
+
+  --shadow:0 1px 1px rgba(19,26,32,.04), 0 10px 28px -20px rgba(19,26,32,.45);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#10151A; --surface:#181F25; --surface-2:#1E262C; --sunk:#131A1F;
+    --ink:#E6EBEE; --ink-2:#A4B2BB; --ink-3:#76858F;
+    --rule:#2A343B; --rule-2:#3B4850;
+    --accent:#E9A93C; --accent-hi:#F3BC5B; --accent-soft:#33280F;
+    --alert:#E58068; --alert-soft:#3B221B;
+    --good:#4A9A4F; --good-soft:#1B2F26;
+    --focus:#4A9A4F;
+    --headline-bg:#0A0E12; --headline-ink:#E6EBEE;
+
+    --s-plate:#3B6F8E; --s-tube:#5296B2; --s-parts:#7FB6C9; --s-scrap:#A9C6D2;
+    --s-outsrc:#A98BC0; --s-eng:#E07553; --s-mfg:#E9A93C; --s-cons:#F0D08F;
+    --s-oh:#75838E; --s-pack:#93A0A9; --s-freight:#AAB5BC; --s-misc:#C3CCD1;
+
+    --zone-buy:#E58068; --zone-mid:#E9A93C; --zone-make:#68B392;
+
+    --shadow:0 1px 1px rgba(0,0,0,.3), 0 10px 28px -20px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#10151A; --surface:#181F25; --surface-2:#1E262C; --sunk:#131A1F;
+  --ink:#E6EBEE; --ink-2:#A4B2BB; --ink-3:#76858F;
+  --rule:#2A343B; --rule-2:#3B4850;
+  --accent:#E9A93C; --accent-hi:#F3BC5B; --accent-soft:#33280F;
+  --alert:#E58068; --alert-soft:#3B221B;
+  --good:#4A9A4F; --good-soft:#1B2F26;
+  --focus:#4A9A4F;
+  --headline-bg:#0A0E12; --headline-ink:#E6EBEE;
+
+  --s-plate:#3B6F8E; --s-tube:#5296B2; --s-parts:#7FB6C9; --s-scrap:#A9C6D2;
+  --s-outsrc:#A98BC0; --s-eng:#E07553; --s-mfg:#E9A93C; --s-cons:#F0D08F;
+  --s-oh:#75838E; --s-pack:#93A0A9; --s-freight:#AAB5BC; --s-misc:#C3CCD1;
+
+  --zone-buy:#E58068; --zone-mid:#E9A93C; --zone-make:#68B392;
+
+  --shadow:0 1px 1px rgba(0,0,0,.3), 0 10px 28px -20px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
+  font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1280px;margin:0 auto;padding:28px 20px 60px}
+
+.masthead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px;
+  padding-bottom:18px;border-bottom:2px solid var(--ink)}
+.mast-main{flex:1 1 320px;min-width:0}
+.eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px}
+h1{font-size:clamp(26px,4.4vw,38px);font-weight:900;letter-spacing:.03em;margin:0;
+  line-height:1.15;text-wrap:balance}
+.tagline{margin:8px 0 0;color:var(--ink-2);font-size:14px;max-width:58ch}
+.mast-tools{display:flex;gap:8px;flex-wrap:wrap}
+
+.banner{display:flex;gap:11px;align-items:flex-start;margin:18px 0 0;padding:12px 15px;
+  background:var(--accent-soft);border-left:3px solid var(--accent-hi);border-radius:0 4px 4px 0;
+  font-size:13px;line-height:1.6;color:var(--ink-2)}
+.banner b{color:var(--ink)}
+
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 384px;gap:32px;margin-top:24px;align-items:start}
+@media (max-width:1060px){.cols{grid-template-columns:minmax(0,1fr);gap:24px}}
+.panel-col{position:sticky;top:84px}
+@media (max-width:1060px){.panel-col{position:static}}
+
+.sec{background:var(--surface);border:1px solid var(--rule);border-radius:5px;
+  margin-bottom:16px;box-shadow:var(--shadow);overflow:hidden}
+.sec-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;padding:14px 18px;
+  border-bottom:1px solid var(--rule);background:var(--surface-2)}
+.sec-code{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.16em;
+  color:var(--accent);text-transform:uppercase}
+.sec-title{font-size:16px;font-weight:700;letter-spacing:.04em;margin:0}
+.sec-note{font-size:12px;color:var(--ink-3);margin-left:auto}
+.sec-body{padding:16px 18px}
+.sub-h{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:18px 0 9px;padding-bottom:5px;border-bottom:1px solid var(--rule)}
+.sub-h:first-child{margin-top:0}
+
+.grid{display:grid;gap:12px 16px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:600px){.g2,.g3,.g4{grid-template-columns:minmax(0,1fr)}}
+
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.f-label{font-size:12.5px;font-weight:500;color:var(--ink-2);letter-spacing:.02em}
+.f-label b{color:var(--ink);font-weight:700}
+.f-box{display:flex;align-items:stretch;border:1px solid var(--rule-2);border-radius:4px;
+  background:var(--surface);overflow:hidden}
+.f-box:focus-within{border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb,var(--focus) 22%,transparent)}
+input[type=number],input[type=text]{flex:1 1 auto;min-width:0;border:0;background:transparent;
+  color:var(--ink);font-family:var(--mono);font-size:15px;font-weight:500;padding:8px 10px;
+  text-align:right;font-variant-numeric:tabular-nums}
+input[type=text]{text-align:left;font-family:var(--sans);font-size:14px}
+input:focus{outline:none}
+input:disabled{color:var(--ink-3);background:var(--sunk)}
+.f-unit{display:flex;align-items:center;padding:0 10px;background:var(--surface-2);
+  border-left:1px solid var(--rule);font-family:var(--mono);font-size:11.5px;color:var(--ink-3);
+  letter-spacing:.05em;white-space:nowrap}
+.hint{font-size:11.5px;color:var(--ink-3);line-height:1.5}
+.hint b{color:var(--ink-2)}
+select{font-family:var(--sans);font-size:14px;color:var(--ink);background:var(--surface);
+  border:1px solid var(--rule-2);border-radius:4px;padding:8px 10px;width:100%}
+select:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+
+.seg{display:inline-flex;border:1px solid var(--rule-2);border-radius:4px;overflow:hidden;background:var(--surface)}
+.seg button{font-family:var(--sans);font-size:12.5px;font-weight:500;color:var(--ink-2);
+  background:transparent;border:0;padding:6px 12px;cursor:pointer;letter-spacing:.02em}
+.seg button + button{border-left:1px solid var(--rule)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.seg button:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+
+.btn{font-family:var(--sans);font-size:12.5px;font-weight:500;letter-spacing:.03em;
+  border:1px solid var(--rule-2);background:var(--surface);color:var(--ink-2);
+  border-radius:4px;padding:7px 13px;cursor:pointer}
+.btn:hover{border-color:var(--ink-3);color:var(--ink)}
+.btn:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.btn-dark{background:var(--ink);color:var(--ground);border-color:var(--ink)}
+.btn-dark:hover{color:var(--ground);opacity:.88}
+.btn-sm{padding:4px 9px;font-size:11.5px}
+
+.rows{display:flex;flex-direction:column;gap:8px}
+.mrow{display:grid;gap:8px;align-items:end;grid-template-columns:1.5fr 1fr 1fr 1fr 1fr auto}
+.mrow.tube{grid-template-columns:1.4fr 1fr 1fr 1fr auto}
+.mrow.vendor{grid-template-columns:1.4fr 1fr auto auto auto}
+@media (max-width:760px){
+  .mrow,.mrow.tube,.mrow.vendor{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .mrow .del{grid-column:span 2;justify-self:start}
+}
+.mrow .f-label{font-size:11px;color:var(--ink-3)}
+.mrow.tube{align-items:end}
+.field.pick select{font-size:12.5px;padding:6px 8px}
+.pick-src{font-family:var(--mono);font-size:10px;color:var(--accent);letter-spacing:0}
+.src-note{
+  display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;
+  font-family:var(--mono);font-size:11px;color:var(--ink-3);
+  background:var(--sunk);border-radius:4px;padding:8px 11px;margin-bottom:12px;
+}
+.src-note b{color:var(--ink);font-weight:600}
+.del{border:1px solid var(--rule);background:var(--surface-2);color:var(--ink-3);
+  border-radius:4px;width:32px;height:36px;cursor:pointer;font-size:15px;line-height:1}
+.del:hover{color:var(--alert);border-color:var(--alert)}
+.del:focus-visible{outline:2px solid var(--focus)}
+
+.subtotal{display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+  margin-top:12px;padding-top:10px;border-top:1px dashed var(--rule-2);
+  font-family:var(--mono);font-size:13px;color:var(--ink-2)}
+.subtotal b{font-size:16px;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+.proc{width:100%;border-collapse:collapse;font-size:13.5px}
+.proc th{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;text-align:right;padding:0 6px 8px}
+.proc th:first-child{text-align:left}
+.proc td{padding:3px 6px;border-top:1px solid var(--rule)}
+.proc td:first-child{color:var(--ink-2)}
+.proc td.amt{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;
+  color:var(--ink-2);white-space:nowrap}
+.proc input{padding:6px 8px;font-size:14px}
+.proc .f-box{min-width:74px}
+.proc tr.hot td:first-child{color:var(--accent);font-weight:500}
+.proc tr.grp td{background:var(--surface-2);font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);padding:7px 6px}
+.tbl-scroll{overflow-x:auto}
+
+/* ---------- 全域設定 ---------- */
+.sec.global{border-color:var(--rule-2);border-top:3px solid var(--accent-hi)}
+.sec.global .sec-head{background:var(--accent-soft)}
+.sec.global .sec-code{color:var(--accent)}
+.f-box.big input{font-size:19px;font-weight:600;padding:11px 12px}
+.rate-strip{
+  display:flex;flex-wrap:wrap;gap:8px 26px;margin-top:14px;padding-top:12px;
+  border-top:1px dashed var(--rule-2);font-family:var(--mono);font-size:12.5px;color:var(--ink-3);
+}
+.rate-strip b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+.capcheck{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:4px;
+  font-size:12.5px;line-height:1.5;margin-top:12px}
+.capcheck.ok{background:var(--good-soft);color:var(--good)}
+.capcheck.no{background:var(--alert-soft);color:var(--alert)}
+.capcheck b{font-weight:700}
+
+.vs{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;
+  margin-top:12px;padding:11px 14px;background:var(--sunk);border-radius:4px;font-size:12.5px}
+.vs .side{display:flex;flex-direction:column;gap:2px}
+.vs .side .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.vs .side .v{font-family:var(--mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+.vs .side.win .v{color:var(--good)}
+.vs .mid{font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.vs .side.r{text-align:right}
+
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:5px;
+  box-shadow:var(--shadow);overflow:hidden}
+.panel + .panel{margin-top:16px}
+.panel-head{padding:14px 18px 12px;border-bottom:1px solid var(--rule);background:var(--surface-2)}
+.panel-body{padding:16px 18px}
+
+.stack{display:flex;height:14px;border-radius:3px;overflow:hidden;background:var(--sunk);margin-bottom:12px}
+.stack span{display:block;height:100%;transition:flex-basis .25s ease}
+.legend{display:flex;flex-direction:column}
+.li{display:grid;grid-template-columns:9px 1fr auto auto;gap:9px;align-items:center;
+  padding:5px 0;border-bottom:1px solid var(--rule);font-size:13px}
+.li:last-child{border-bottom:0}
+.li .sw{width:9px;height:9px;border-radius:2px}
+.li .nm{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li .pc{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-variant-numeric:tabular-nums;min-width:38px;text-align:right}
+.li .vl{font-family:var(--mono);font-size:13.5px;font-weight:500;font-variant-numeric:tabular-nums;min-width:66px;text-align:right}
+.li.zero .nm,.li.zero .vl{color:var(--ink-3)}
+
+.total-row{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  margin-top:14px;padding-top:12px;border-top:2px solid var(--ink)}
+.total-row .lbl{font-size:13px;font-weight:700;letter-spacing:.05em}
+.total-row .val{font-family:var(--mono);font-size:26px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+
+.hbar{display:flex;flex-direction:column;gap:7px}
+.hb{display:grid;grid-template-columns:88px 1fr 52px;gap:9px;align-items:center;font-size:12.5px}
+.hb .n{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hb .t{height:8px;background:var(--sunk);border-radius:2px;overflow:hidden}
+.hb .t i{display:block;height:100%;background:var(--s-mfg)}
+.hb .v{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums;text-align:right;color:var(--ink-2)}
+
+.headline{background:var(--headline-bg);color:var(--headline-ink);padding:18px}
+.headline .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;opacity:.62}
+.headline .v{font-family:var(--mono);font-size:clamp(30px,6vw,40px);font-weight:600;
+  font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1.1;margin-top:4px;color:var(--accent-hi)}
+.headline .sub{font-size:12px;opacity:.7;margin-top:6px;font-family:var(--mono)}
+
+.ladder{width:100%;border-collapse:collapse;font-size:13.5px}
+.ladder th{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:500;text-align:right;padding:0 0 8px}
+.ladder th:first-child{text-align:left}
+.ladder td{padding:8px 0;border-top:1px solid var(--rule);text-align:right;
+  font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ladder td:first-child{text-align:left;font-family:var(--sans);color:var(--ink-2)}
+.ladder tr.mark td{color:var(--accent);font-weight:600}
+.ladder .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  border:1px solid currentColor;border-radius:2px;padding:1px 5px;margin-left:7px;opacity:.85}
+
+.alerts{display:flex;flex-direction:column}
+.alert{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--rule);
+  font-size:13px;line-height:1.5}
+.alert:last-child{border-bottom:0}
+.alert .dot{width:7px;height:7px;border-radius:50%;background:var(--alert);margin-top:7px;flex:none}
+.alert.soft .dot{background:var(--ink-3)}
+.alert.soft{color:var(--ink-2)}
+.alert strong{color:var(--alert);font-weight:500}
+.alert.soft strong{color:var(--ink)}
+.ok-state{display:flex;gap:9px;align-items:center;font-size:13px;color:var(--good);
+  background:var(--good-soft);border-radius:4px;padding:10px 12px}
+
+/* ---- Make or Buy ---- */
+.mb-scale{position:relative;margin:26px 0 8px;padding-top:34px}
+.mb-track{display:flex;height:20px;border-radius:3px;overflow:hidden;background:var(--sunk)}
+.mb-track span{display:block;height:100%;opacity:.82}
+.mb-ticks{position:relative;height:34px;margin-top:5px}
+.mb-tick{position:absolute;transform:translateX(-50%);text-align:center;font-family:var(--mono);
+  font-size:10px;color:var(--ink-3);line-height:1.35;white-space:nowrap}
+.mb-tick i{display:block;width:1px;height:7px;background:var(--rule-2);margin:0 auto 3px}
+.mb-mark{position:absolute;top:0;transform:translateX(-50%);text-align:center;white-space:nowrap}
+.mb-mark .lb{font-family:var(--mono);font-size:10.5px;font-weight:600;color:var(--ink);
+  background:var(--surface);border:1px solid var(--ink);border-radius:3px;padding:1px 6px;display:inline-block}
+.mb-mark .pin{display:block;width:1px;height:9px;background:var(--ink);margin:2px auto 0}
+.mb-zones{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;font-size:11.5px}
+.mb-zone{display:flex;flex-direction:column;gap:2px}
+.mb-zone .b{height:3px;border-radius:2px}
+.mb-zone .t{color:var(--ink-3);line-height:1.4}
+@media (max-width:640px){.mb-zones{grid-template-columns:repeat(2,1fr)}}
+
+.verdict{display:flex;flex-direction:column;gap:0;margin-top:6px}
+.vrow{display:grid;grid-template-columns:minmax(90px,1.1fr) auto 1fr;gap:12px;align-items:start;
+  padding:12px 0;border-bottom:1px solid var(--rule)}
+.vrow:last-child{border-bottom:0}
+.vrow .who{font-weight:700;font-size:14px}
+.vrow .who small{display:block;font-family:var(--mono);font-size:11.5px;font-weight:400;color:var(--ink-3);margin-top:2px}
+.pill{font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  padding:3px 9px;border-radius:3px;white-space:nowrap;align-self:start}
+.pill.buy{background:var(--alert-soft);color:var(--alert)}
+.pill.make{background:var(--good-soft);color:var(--good)}
+.pill.dep{background:var(--accent-soft);color:var(--accent)}
+.vrow .why{font-size:13px;color:var(--ink-2);line-height:1.55}
+.vrow .why em{font-style:normal;font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink);font-weight:500}
+
+.rev{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:16px}
+@media (max-width:760px){.rev{grid-template-columns:minmax(0,1fr)}}
+.revcard{background:var(--sunk);border-radius:4px;padding:13px 15px}
+.revcard .k{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+.revcard .v{font-family:var(--mono);font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;margin-top:3px}
+.revcard .d{font-size:12px;color:var(--ink-2);margin-top:5px;line-height:1.5}
+.revcard.hot .v{color:var(--alert)}
+
+.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px 22px}
+@media (max-width:780px){.checks{grid-template-columns:minmax(0,1fr)}}
+.chk{display:flex;gap:9px;align-items:flex-start;padding:6px 0;font-size:13px;cursor:pointer;line-height:1.45}
+.chk input{margin:3px 0 0;accent-color:var(--accent-hi);flex:none;width:15px;height:15px}
+.chk .txt{color:var(--ink-2)}
+.chk input:checked ~ .txt{color:var(--ink-3);text-decoration:line-through}
+.chk .flag{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;color:var(--alert);
+  border:1px solid var(--alert);border-radius:2px;padding:0 4px;margin-left:6px;white-space:nowrap;vertical-align:1px}
+.chk .flag[hidden]{display:none}
+.progress{font-family:var(--mono);font-size:12px;color:var(--ink-3);font-variant-numeric:tabular-nums;margin-left:auto}
+
+
+.foot{margin-top:28px;padding-top:16px;border-top:1px solid var(--rule);font-size:12px;
+  color:var(--ink-3);line-height:1.7;max-width:80ch}
+.foot code{font-family:var(--mono);font-size:11.5px;background:var(--sunk);padding:1px 5px;border-radius:3px}
+.toast{position:fixed;left:50%;bottom:28px;transform:translate(-50%,14px);
+  background:var(--headline-bg);color:var(--headline-ink);font-size:13px;padding:9px 18px;
+  border-radius:4px;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:60}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+[hidden]{display:none !important}
+@media (prefers-reduced-motion:reduce){*{transition:none !important}}
+
+/* ---------- 版本徽章與更新說明 ---------- */
+.ver-badge{
+  font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.08em;
+  border:1px solid var(--rule-2);background:var(--surface);color:var(--ink-2);
+  border-radius:3px;padding:3px 8px;cursor:pointer;line-height:1.4;
+}
+.ver-badge:hover{border-color:var(--accent-hi);color:var(--accent)}
+.ver-badge:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+
+dialog.changelog{
+  border:1px solid var(--rule-2);border-radius:6px;background:var(--surface);color:var(--ink);
+  max-width:620px;width:calc(100vw - 32px);max-height:82vh;padding:0;box-shadow:0 24px 60px -20px rgba(0,0,0,.5);
+}
+dialog.changelog::backdrop{background:rgba(10,14,18,.55)}
+.cl-head{
+  display:flex;align-items:baseline;gap:12px;padding:15px 20px;
+  border-bottom:1px solid var(--rule);background:var(--surface-2);position:sticky;top:0;
+}
+.cl-head h2{margin:0;font-size:16px;font-weight:700;letter-spacing:.04em}
+.cl-body{padding:6px 20px 20px;overflow-y:auto;max-height:calc(82vh - 58px)}
+.cl-ver{padding:15px 0;border-bottom:1px solid var(--rule)}
+.cl-ver:last-child{border-bottom:0}
+.cl-ver h3{
+  margin:0 0 3px;font-size:14px;font-weight:700;display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+}
+.cl-ver h3 .tag{
+  font-family:var(--mono);font-size:10.5px;font-weight:600;letter-spacing:.06em;
+  background:var(--ink);color:var(--surface);border-radius:3px;padding:2px 7px;
+}
+.cl-ver.now h3 .tag{background:var(--accent-hi);color:#1b1206}
+.cl-ver h3 .d{font-family:var(--mono);font-size:11px;color:var(--ink-3);font-weight:400;margin-left:auto}
+.cl-ver ul{margin:7px 0 0;padding-left:17px;font-size:13px;line-height:1.65;color:var(--ink-2)}
+.cl-ver li{margin-bottom:2px}
+.cl-ver li b{color:var(--ink);font-weight:600}
+
+/* ---------- 快速估價區（可輸入）---------- */
+.sec.quickcalc{border-top:3px solid var(--s-mfg)}
+.sec.quickcalc .sec-head{background:var(--sunk)}
+.sec.quickcalc .sec-code{color:var(--s-mfg)}
+.qk-out{
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  background:var(--headline-bg);color:var(--headline-ink);
+  border-radius:5px;padding:12px 15px;margin-top:16px;
+}
+.qk-tiers{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:12px}
+@media (max-width:640px){.qk-tiers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.qk-tier{
+  border:1px solid var(--rule-2);border-radius:4px;padding:9px 11px;text-align:center;background:var(--surface);
+}
+.qk-tier.mark{border-color:var(--accent-hi);background:var(--accent-soft)}
+.qk-tier .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-3);display:block}
+.qk-tier .v{font-family:var(--mono);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums;display:block;margin-top:2px}
+.qk-tier.mark .v{color:var(--accent)}
+.qk-cmp{
+  display:flex;gap:9px;align-items:flex-start;margin-top:12px;padding:10px 12px;
+  border-radius:4px;font-size:12.5px;line-height:1.55;background:var(--surface-2);color:var(--ink-2);
+}
+.qk-cmp b{color:var(--ink)}
+.qk-cmp.off{background:var(--alert-soft);color:var(--alert)}
+.qk-cmp.off b{color:var(--alert)}
+
+/* ---------- 快速估價條 ---------- */
+.quick{
+  position:sticky;top:0;z-index:30;margin:16px 0 0;
+  background:var(--headline-bg);color:var(--headline-ink);
+  border-radius:5px;padding:11px 16px;box-shadow:var(--shadow);
+  display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+}
+.q-cell{display:flex;flex-direction:column;gap:1px;min-width:0}
+.q-cell .k{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;
+  opacity:.6;white-space:nowrap;
+}
+.q-cell .v{
+  font-family:var(--mono);font-size:19px;font-weight:600;font-variant-numeric:tabular-nums;
+  line-height:1.15;white-space:nowrap;
+}
+.q-cell.big .v{font-size:23px}
+.q-cell.gain .v{color:var(--accent-hi)}
+.q-cell .s{font-family:var(--mono);font-size:10px;opacity:.55;white-space:nowrap}
+.q-op{font-family:var(--mono);font-size:15px;opacity:.4;padding:0 3px;align-self:center}
+.q-sep{flex:1 1 8px;min-width:0}
+@media (max-width:900px){
+  .quick{gap:4px 14px}
+  .q-op{display:none}
+  .q-cell{flex:1 0 auto}
+  .q-cell .v{font-size:16px}
+  .q-cell.big .v{font-size:19px}
+}
+
+/* ================= 列印：估價單 ================= */
+.print-only{display:none}
+
+@media print{
+  /* 列印一律走淺色，不管螢幕是什麼主題 */
+  .wrap, .toast{display:none !important}
+  .print-only{display:block !important}
+
+  html,body{background:#fff !important;color:#111 !important;margin:0;padding:0}
+  body{font-family:var(--sans);font-size:10pt;line-height:1.42}
+  @page{margin:11mm 12mm}
+
+  #printDoc{max-width:none}
+  .pd-head{
+    display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
+    border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:9px;
+  }
+  .pd-title{font-size:17pt;font-weight:900;letter-spacing:.06em;margin:0;color:#111}
+  .pd-sub{font-family:var(--mono);font-size:8pt;letter-spacing:.14em;text-transform:uppercase;color:#666;margin-top:3px}
+  .pd-meta{font-family:var(--mono);font-size:9pt;color:#333;text-align:right;line-height:1.6;white-space:nowrap}
+
+  .pd-job{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:4px 20px;
+    border:1px solid #999;padding:6px 10px;margin-bottom:10px;font-size:9pt;
+  }
+  .pd-job div{display:flex;gap:7px;min-width:0}
+  .pd-job b{color:#666;font-weight:500;white-space:nowrap}
+  .pd-job span{color:#111;border-bottom:1px dotted #bbb;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+  .pd-h{
+    font-size:9.5pt;font-weight:700;letter-spacing:.08em;margin:9px 0 4px;
+    padding-bottom:2px;border-bottom:1px solid #111;color:#111;
+  }
+  .pd-h:first-of-type{margin-top:0}
+  .pd-h small{float:right;font-weight:400;font-family:var(--mono);font-size:8.5pt;color:#555;letter-spacing:0}
+
+  table.pd{width:100%;border-collapse:collapse;font-size:9.5pt}
+  table.pd td{padding:1.9px 4px;border-bottom:1px solid #e2e2e2;color:#111}
+  table.pd td.n{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  table.pd td.p{font-family:var(--mono);text-align:right;color:#666;font-size:8pt;width:42px}
+  table.pd tr.sum td{border-top:1.5px solid #111;border-bottom:none;font-weight:700;padding-top:4px;font-size:10.5pt}
+  table.pd tr.zero td{color:#999}
+  table.pd tr.mark td{font-weight:700}
+
+  .pd-2col{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;align-items:start}
+  .pd-kv{font-family:var(--mono);font-size:8.4pt;color:#444;line-height:1.6}
+  .pd-kv b{color:#111;font-weight:600}
+
+  .pd-verdict{border:1px solid #999;padding:7px 10px;margin-top:6px;font-size:9.5pt}
+  .pd-verdict .vv{font-weight:700}
+
+  .pd-note{border:1px solid #999;min-height:40px;padding:6px 9px;margin-top:4px;font-size:9pt;color:#111}
+
+  .pd-sign{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:14px}
+  .pd-sign div{border-top:1px solid #111;padding-top:5px;font-size:9pt;color:#555;text-align:center}
+
+  .pd-foot{margin-top:10px;padding-top:6px;border-top:1px solid #ccc;font-size:7.6pt;color:#777;line-height:1.5}
+
+  table.pd, .pd-job, .pd-verdict, .pd-sign, .pd-note, .pd-tail{page-break-inside:avoid}
+  .pd-h{page-break-after:avoid}
+}
+
+.sf-nav{background:#fff;border-bottom:1px solid var(--rule);padding:0 20px;display:flex;align-items:center;gap:4px;position:sticky;top:0;z-index:200}
+.sf-nav .sf-brand{font-family:'Noto Serif TC','Songti TC',serif;font-weight:700;color:var(--ink);font-size:15px;margin-right:18px;padding:12px 0;white-space:nowrap}
+.sf-nav a{color:var(--ink);opacity:.7;text-decoration:none;font-size:13px;padding:12px 14px;border-bottom:2px solid transparent;transition:.2s;white-space:nowrap}
+.sf-nav a:hover{opacity:1;color:#2D6B3D}
+.sf-nav a.on{opacity:1;color:#2D6B3D;border-bottom-color:#2D6B3D;font-weight:700}
+@media print{.sf-nav{display:none!important}}
+</style>
+</head>
+<body>
+<nav class="sf-nav">
+  <span class="sf-brand">尚鋒工具</span>
+  <a href="/">📄 OCR 訂單</a>
+  <a href="/tools">🛠️ 工作工具箱</a>
+  <a href="/quote" class="on">📐 估價台</a>
+</nav>
+
+
+<div class="wrap">
+
+  <header class="masthead">
+    <div class="mast-main">
+      <span class="eyebrow">Stainless Fabrication · Cost · Quote · Make-or-Buy</span>
+      <h1>不鏽鋼估價台</h1>
+      <p class="tagline">依一廠實際製程建的成本模型：拆圖、板材線、管材線、加工件線，匯流到組焊與表面處理。附外廠報價逆向反推。</p>
+    </div>
+    <div class="mast-tools">
+      <button class="ver-badge" id="verBadge" type="button" title="看版本更新重點">v5 ▾</button>
+      <button class="btn" id="btnReset" type="button">回到預設值</button>
+      <button class="btn" id="btnCopy" type="button">複製估價明細</button>
+      <button class="btn btn-dark" id="btnPrint" type="button">列印／存成 PDF</button>
+    </div>
+  </header>
+
+  <div class="quick" id="quickBar">
+    <div class="q-cell"><span class="k">料錢</span><span class="v" id="qMat">—</span><span class="s">材料·外購·委外·耗材·運費</span></div>
+    <span class="q-op">＋</span>
+    <div class="q-cell"><span class="k">工錢</span><span class="v" id="qLabor">—</span><span class="s" id="qLaborSub">—</span></div>
+    <span class="q-op">＋</span>
+    <div class="q-cell"><span class="k">間接費</span><span class="v" id="qOh">—</span><span class="s">租金水電折舊管理</span></div>
+    <span class="q-op">＝</span>
+    <div class="q-cell big"><span class="k">總成本</span><span class="v" id="qCost">—</span><span class="s" id="qCostSub">—</span></div>
+    <span class="q-sep"></span>
+    <div class="q-cell big"><span class="k">建議售價</span><span class="v" id="qPrice">—</span><span class="s" id="qPriceSub">—</span></div>
+    <span class="q-op">→</span>
+    <div class="q-cell gain"><span class="k">利潤</span><span class="v" id="qProfit">—</span><span class="s" id="qProfitSub">—</span></div>
+  </div>
+
+  <div class="banner">
+    <div><b>工時全部用分鐘填，時薪只設一次。</b>預設工時是推估不是實績——先照現況跑一次看結構，再用派工實績逐項校準，尤其是氬焊、焊道研磨、拋光這三項，它們佔了誤差的大半。</div>
+  </div>
+
+  <!-- 全域設定 -->
+  <section class="sec global">
+    <div class="sec-head">
+      <span class="sec-code">Global</span>
+      <h2 class="sec-title">全域設定</h2>
+      <span class="sec-note">改這裡，全部製程一起變</span>
+    </div>
+    <div class="sec-body">
+      <div class="sub-h">案件資訊（會印在估價單上）</div>
+      <div class="grid g3" style="margin-bottom:6px">
+        <label class="field">
+          <span class="f-label"><b>品名／案名</b></span>
+          <span class="f-box"><input type="text" id="jobName" placeholder="例：不鏽鋼治療車 客製"></span>
+          <span class="hint">存 PDF 時會用這個當檔名 → <b id="fileNameHint">—</b></span>
+        </label>
+        <label class="field">
+          <span class="f-label">客戶</span>
+          <span class="f-box"><input type="text" id="jobCustomer" placeholder="客戶名稱"></span>
+        </label>
+        <label class="field">
+          <span class="f-label">圖號</span>
+          <span class="f-box"><input type="text" id="jobDrawing" placeholder="圖號／料號"></span>
+        </label>
+        <label class="field">
+          <span class="f-label">估價人</span>
+          <span class="f-box"><input type="text" id="jobBy" placeholder="姓名"></span>
+        </label>
+        <label class="field">
+          <span class="f-label">估價日期</span>
+          <span class="f-box"><input type="text" id="jobDate"></span>
+        </label>
+        <label class="field">
+          <span class="f-label">備註</span>
+          <span class="f-box"><input type="text" id="jobNote" placeholder="交期、特殊要求…"></span>
+        </label>
+      </div>
+
+      <div class="sub-h">計算參數</div>
+      <div class="grid g3">
+        <label class="field">
+          <span class="f-label"><b>工廠加工時薪</b></span>
+          <span class="f-box big"><input type="number" id="rate" value="450" step="10" min="0" inputmode="decimal"><span class="f-unit">元/hr</span></span>
+          <span class="hint">全部工項共用這一個數字。<b>≠ 員工薪資時薪</b>——要含勞健保、勞退、等待時間、基本管理費與設備負擔。年度總人工成本 ÷ 年度<b>有效產出</b>工時（稼動率抓 65%）。</span>
+        </label>
+        <label class="field">
+          <span class="f-label"><b>本單台數</b></span>
+          <span class="f-box big"><input type="number" id="batchQty" value="1" step="1" min="1" inputmode="numeric"><span class="f-unit">台</span></span>
+          <span class="hint">工程工時除以台數攤提。客製一台就填 1。</span>
+        </label>
+        <label class="field">
+          <span class="f-label"><b>第二台起熟練係數</b></span>
+          <span class="f-box big"><input type="number" id="learnRate" value="75" step="5" min="30" max="100" inputmode="decimal"><span class="f-unit">%</span></span>
+          <span class="hint">同批第二台以後的製造工時比例。治具做好、順序熟了通常降到 70～80%。填 100 表示不打折。</span>
+        </label>
+      </div>
+      <div class="rate-strip" id="rateStrip"></div>
+    </div>
+  </section>
+
+  <!-- 快速估價（獨立試算） -->
+  <section class="sec quickcalc">
+    <div class="sec-head">
+      <span class="sec-code">Quick</span>
+      <h2 class="sec-title">快速估價</h2>
+      <span class="sec-note">客戶電話問價時用 · 不影響下面的詳細估價</span>
+    </div>
+    <div class="sec-body">
+      <div class="grid g4">
+        <label class="field">
+          <span class="f-label"><b>材料費合計</b></span>
+          <span class="f-box big"><input type="number" id="qkMat" value="2610" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+          <span class="hint">板材＋管材＋外購件。損耗率會自動加上去。</span>
+        </label>
+        <label class="field">
+          <span class="f-label"><b>加工工時</b></span>
+          <span class="f-box big"><input type="number" id="qkMins" value="635" step="15" min="0" inputmode="numeric"><span class="f-unit">分</span></span>
+          <span class="hint" id="qkMinsHint">—</span>
+        </label>
+        <label class="field">
+          <span class="f-label"><b>其他費用</b></span>
+          <span class="f-box big"><input type="number" id="qkOther" value="920" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+          <span class="hint">耗材、包材、運費、委外、風險。</span>
+        </label>
+        <label class="field">
+          <span class="f-label"><b>目標毛利率</b></span>
+          <span class="f-box big"><input type="number" id="qkMargin" value="25" step="1" min="0" max="90" inputmode="decimal"><span class="f-unit">%</span></span>
+          <span class="hint">時薪與間接費率沿用上面的全域設定。</span>
+        </label>
+      </div>
+
+      <div class="qk-out">
+        <div class="q-cell"><span class="k">料錢</span><span class="v" id="qkMatOut">—</span><span class="s" id="qkMatSub">—</span></div>
+        <span class="q-op">＋</span>
+        <div class="q-cell"><span class="k">工錢</span><span class="v" id="qkLabor">—</span><span class="s" id="qkLaborSub">—</span></div>
+        <span class="q-op">＋</span>
+        <div class="q-cell"><span class="k">間接費</span><span class="v" id="qkOh">—</span><span class="s" id="qkOhSub">—</span></div>
+        <span class="q-op">＋</span>
+        <div class="q-cell"><span class="k">其他</span><span class="v" id="qkOtherOut">—</span></div>
+        <span class="q-op">＝</span>
+        <div class="q-cell big"><span class="k">總成本</span><span class="v" id="qkTotal">—</span></div>
+        <span class="q-sep"></span>
+        <div class="q-cell big"><span class="k">建議售價</span><span class="v" id="qkPrice">—</span><span class="s" id="qkPriceSub">—</span></div>
+        <span class="q-op">→</span>
+        <div class="q-cell gain"><span class="k">利潤</span><span class="v" id="qkProfit">—</span></div>
+      </div>
+
+      <div class="qk-tiers" id="qkTiers"></div>
+      <div class="qk-cmp" id="qkCmp"></div>
+    </div>
+  </section>
+
+  <div class="cols">
+    <div class="input-col">
+
+      <!-- 工程 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Engineering</span>
+          <h2 class="sec-title">工程（拆圖與發包）</h2>
+          <span class="sec-note">客製件的大宗，最常被漏算</span>
+        </div>
+        <div class="sec-body">
+          <div class="tbl-scroll">
+            <table class="proc">
+              <thead><tr><th>工項</th><th style="width:132px">工時</th><th style="width:96px">小計 元</th></tr></thead>
+              <tbody id="engRows"></tbody>
+            </table>
+          </div>
+          <div class="subtotal"><span>工程成本／台</span><b id="outEng">—</b></div>
+        </div>
+      </section>
+
+      <!-- 板材線 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Plate Line</span>
+          <h2 class="sec-title">板材線</h2>
+          <div class="sec-note">
+            <span class="seg" role="group" aria-label="板材輸入方式">
+              <button type="button" data-mode="plate" data-val="weight" aria-pressed="true">直接輸入重量</button>
+              <button type="button" data-mode="plate" data-val="dim" aria-pressed="false">由尺寸換算</button>
+            </span>
+          </div>
+        </div>
+        <div class="sec-body">
+          <div class="sub-h">材料</div>
+          <div class="grid g2">
+            <label class="field">
+              <span class="f-label"><b>板材重量</b>（下給鋼材商的進料重量）</span>
+              <span class="f-box"><input type="number" id="plateWeight" value="13" step="0.01" min="0" inputmode="decimal"><span class="f-unit">kg</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label"><b>板材單價</b></span>
+              <span class="f-box"><input type="number" id="platePrice" value="130" step="1" min="0" inputmode="decimal"><span class="f-unit">元/kg</span></span>
+            </label>
+          </div>
+
+          <div id="plateDim" hidden style="margin-top:14px">
+            <div class="grid g2" style="margin-bottom:12px">
+              <label class="field">
+                <span class="f-label">材質比重</span>
+                <select id="density">
+                  <option value="7.93" selected>SUS304 — 7.93</option>
+                  <option value="7.98">SUS316 / 316L — 7.98</option>
+                  <option value="7.70">SUS430 — 7.70</option>
+                </select>
+              </label>
+              <div class="field">
+                <span class="f-label">重量公式</span>
+                <span class="hint" style="padding-top:8px">長 mm × 寬 mm × 厚 mm × 比重 ÷ 1,000,000</span>
+              </div>
+            </div>
+            <div class="rows" id="plateRows"></div>
+            <button class="btn btn-sm" type="button" id="addPlate" style="margin-top:10px">＋ 新增一片</button>
+            <div class="subtotal"><span>換算總重</span><b id="plateWeightCalc">0.00 kg</b></div>
+          </div>
+
+          <div class="sub-h">切樣式 — 廠內自切 or 外包雷射</div>
+          <div class="sec-note" style="margin:0 0 10px">
+            <span class="seg" role="group" aria-label="切樣式方式">
+              <button type="button" data-mode="shape" data-val="self" aria-pressed="true">廠內自切</button>
+              <button type="button" data-mode="shape" data-val="laser" aria-pressed="false">外包雷射</button>
+            </span>
+          </div>
+          <div class="grid g2">
+            <label class="field">
+              <span class="f-label">廠內自切工時（切角機／沖床／鋸台／手工，含修毛邊）</span>
+              <span class="f-box"><input type="number" id="m_shape" value="45" step="5" min="0" inputmode="numeric"><span class="f-unit">分</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label">外包雷射報價</span>
+              <span class="f-box"><input type="number" id="shapeLaser" value="0" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+            </label>
+          </div>
+          <div class="vs" id="shapeVs">
+            <div class="side" id="shapeSelfSide"><span class="k">廠內自切</span><span class="v" id="shapeSelfCost">—</span></div>
+            <div class="mid">VS</div>
+            <div class="side r" id="shapeLaserSide"><span class="k">外包雷射</span><span class="v" id="shapeLaserCost">—</span></div>
+          </div>
+          <p class="hint" style="margin:8px 0 0" id="shapeHint"></p>
+
+          <div class="sub-h">折板 — 能力檢查</div>
+          <div class="grid g3">
+            <label class="field">
+              <span class="f-label">最長折邊</span>
+              <span class="f-box"><input type="number" id="bendLen" value="900" step="10" min="0" inputmode="decimal"><span class="f-unit">mm</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label">板厚</span>
+              <span class="f-box"><input type="number" id="bendThk" value="1.2" step="0.1" min="0" inputmode="decimal"><span class="f-unit">mm</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label">外包折床費用</span>
+              <span class="f-box"><input type="number" id="bendOut" value="0" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+            </label>
+          </div>
+          <div class="capcheck ok" id="bendCheck"></div>
+
+          <div class="sub-h">板材線工時</div>
+          <div class="tbl-scroll">
+            <table class="proc">
+              <thead><tr><th>製程</th><th style="width:132px">工時</th><th style="width:96px">小計 元</th></tr></thead>
+              <tbody id="plateProcRows"></tbody>
+            </table>
+          </div>
+          <div class="subtotal"><span>板材成本（材料）</span><b id="outPlate">—</b></div>
+        </div>
+      </section>
+
+      <!-- 管材線 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Tube Line</span>
+          <h2 class="sec-title">管材線</h2>
+          <div class="sec-note">
+            <span class="seg" role="group" aria-label="管材輸入方式">
+              <button type="button" data-mode="tube" data-val="total" aria-pressed="true">總額</button>
+              <button type="button" data-mode="tube" data-val="detail" aria-pressed="false">定尺明細</button>
+            </span>
+          </div>
+        </div>
+        <div class="sec-body">
+          <div id="tubeTotalBox">
+            <div class="grid g2">
+              <label class="field">
+                <span class="f-label"><b>管材成本</b></span>
+                <span class="f-box"><input type="number" id="tubeTotal" value="520" step="1" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+              </label>
+            </div>
+          </div>
+          <div id="tubeDetail" hidden>
+            <div class="src-note" id="tubeSrc"></div>
+            <div class="rows" id="tubeRows"></div>
+            <button class="btn btn-sm" type="button" id="addTube" style="margin-top:10px">＋ 新增一種管材</button>
+            <label class="chk" style="margin-top:12px">
+              <input type="checkbox" id="tubeWhole" checked>
+              <span class="txt">餘料無法再利用 → 不足一支也整支計入</span>
+            </label>
+          </div>
+
+          <div class="sub-h">彎管（外包，通常按彎數計價）</div>
+          <div class="grid g3">
+            <label class="field">
+              <span class="f-label">彎數（圖上數得出來）</span>
+              <span class="f-box"><input type="number" id="bendQty" value="0" step="1" min="0" inputmode="numeric"><span class="f-unit">彎</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label">每彎單價</span>
+              <span class="f-box"><input type="number" id="bendPrice" value="35" step="5" min="0" inputmode="decimal"><span class="f-unit">元/彎</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label">首件／模具費</span>
+              <span class="f-box"><input type="number" id="bendSetup" value="0" step="100" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+            </label>
+          </div>
+
+          <div class="sub-h">管材線工時</div>
+          <div class="tbl-scroll">
+            <table class="proc">
+              <thead><tr><th>製程</th><th style="width:132px">工時</th><th style="width:96px">小計 元</th></tr></thead>
+              <tbody id="tubeProcRows"></tbody>
+            </table>
+          </div>
+          <div class="subtotal"><span>管材成本（材料）</span><b id="outTube">—</b></div>
+        </div>
+      </section>
+
+      <!-- 加工件與外購件 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Bought-in</span>
+          <h2 class="sec-title">加工件與外購件</h2>
+          <span class="sec-note">進廠即用，不再加工</span>
+        </div>
+        <div class="sec-body">
+          <div class="grid g3">
+            <label class="field">
+              <span class="f-label"><b>加工件</b>（車銑、異形件等）</span>
+              <span class="f-box"><input type="number" id="machParts" value="0" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label"><b>外購件</b>（輪子、把手、滑軌、五金）</span>
+              <span class="f-box"><input type="number" id="buyParts" value="400" step="10" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+            </label>
+            <label class="field">
+              <span class="f-label">其他委外（表面處理、鈍化等）</span>
+              <span class="f-box"><input type="number" id="otherOut" value="0" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- 組焊與表面處理 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Weld &amp; Finish</span>
+          <h2 class="sec-title">組焊與表面處理</h2>
+          <span class="sec-note">你說的「組裝」，強制拆開</span>
+        </div>
+        <div class="sec-body">
+          <p class="hint" style="margin:0 0 14px">7 台氬焊、12 支砂輪、大型拋光機——你的產能重心全在這裡。用一個「組裝」欄位帶過，就是低估的來源。</p>
+          <div class="tbl-scroll">
+            <table class="proc">
+              <thead><tr><th>製程</th><th style="width:132px">工時</th><th style="width:96px">小計 元</th></tr></thead>
+              <tbody id="weldProcRows"></tbody>
+            </table>
+          </div>
+          <div class="subtotal"><span>組焊與表面處理　<span id="weldHours" style="color:var(--ink)">0</span></span><b id="outWeld">—</b></div>
+        </div>
+      </section>
+
+      <!-- 出貨 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Finish &amp; Ship</span>
+          <h2 class="sec-title">清潔、品檢、包裝與出貨</h2>
+        </div>
+        <div class="sec-body">
+          <div class="tbl-scroll">
+            <table class="proc">
+              <thead><tr><th>製程</th><th style="width:132px">工時</th><th style="width:96px">小計 元</th></tr></thead>
+              <tbody id="shipProcRows"></tbody>
+            </table>
+          </div>
+          <div class="grid g2" style="margin-top:16px">
+            <label class="field">
+              <span class="f-label"><b>包裝材料</b></span>
+              <span class="f-box"><input type="number" id="packMat" value="150" step="10" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+              <span class="hint">紙箱、PE 膜、氣泡布、木架、棧板</span>
+            </label>
+            <label class="field">
+              <span class="f-label"><b>運費</b>（貨運外包）</span>
+              <span class="f-box"><input type="number" id="freight" value="300" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+              <span class="hint">有單據，這一項不是誤差來源</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+      <!-- 耗材 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Consumables</span>
+          <h2 class="sec-title">耗材</h2>
+          <span class="sec-note">跟工時連動，不是固定值</span>
+        </div>
+        <div class="sec-body">
+          <div class="grid g3">
+            <label class="field">
+              <span class="f-label"><b>氬氣</b>（元／氬焊小時）</span>
+              <span class="f-box"><input type="number" id="argonRate" value="100" step="10" min="0" inputmode="decimal"><span class="f-unit">元/hr</span></span>
+              <span class="hint">用月氬氣帳單 ÷ 月焊接工時反推，一次算出永久有效</span>
+            </label>
+            <label class="field">
+              <span class="f-label"><b>研磨耗材</b>（元／研磨拋光小時）</span>
+              <span class="f-box"><input type="number" id="grindRate" value="80" step="10" min="0" inputmode="decimal"><span class="f-unit">元/hr</span></span>
+              <span class="hint">砂輪片、百葉片、布輪、拋光膏</span>
+            </label>
+            <label class="field">
+              <span class="f-label">其他耗材（固定）</span>
+              <span class="f-box"><input type="number" id="consOther" value="100" step="10" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+              <span class="hint">焊絲、鎢棒、鑽頭、絲攻、清潔劑、抹布</span>
+            </label>
+          </div>
+          <div class="subtotal"><span>耗材合計</span><b id="outCons">—</b></div>
+        </div>
+      </section>
+
+      <!-- 損耗、間接費、風險 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Overhead &amp; Risk</span>
+          <h2 class="sec-title">材料損耗、製造間接費、風險</h2>
+        </div>
+        <div class="sec-body">
+          <div class="grid g2">
+            <label class="field">
+              <span class="f-label"><b>材料損耗率</b></span>
+              <span class="f-box"><input type="number" id="scrapRate" value="5" step="0.5" min="0" inputmode="decimal"><span class="f-unit">%</span></span>
+              <span class="hint">你是按需求尺寸下料，排版損失已轉嫁給鋼材商。剩下的是切樣式邊料與折壞重做，合理落在 <b>3～8%</b>；異形件多、邊料零碎則 <b>8～15%</b>。</span>
+            </label>
+            <label class="field">
+              <span class="f-label"><b>其他風險／雜支</b></span>
+              <span class="f-box"><input type="number" id="misc" value="0" step="50" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+              <span class="hint">客製修改、重工、試作、報廢。電離子切割機用得越勤，這格該越大。</span>
+            </label>
+          </div>
+          <div class="sub-h">製造間接費</div>
+          <div class="grid g2">
+            <label class="field">
+              <span class="f-label"><b>計算方式</b></span>
+              <select id="ohMode">
+                <option value="hour" selected>每工時固定金額</option>
+                <option value="fixed">固定金額</option>
+                <option value="pct">直接人工 × 百分比</option>
+              </select>
+            </label>
+            <label class="field" id="ohHourField">
+              <span class="f-label">每工時間接費</span>
+              <span class="f-box"><input type="number" id="ohHour" value="120" step="10" min="0" inputmode="decimal"><span class="f-unit">元/hr</span></span>
+            </label>
+            <label class="field" id="ohFixedField" hidden>
+              <span class="f-label">間接費金額</span>
+              <span class="f-box"><input type="number" id="ohFixed" value="500" step="10" min="0" inputmode="decimal"><span class="f-unit">元</span></span>
+            </label>
+            <label class="field" id="ohPctField" hidden>
+              <span class="f-label">佔直接人工比例</span>
+              <span class="f-box"><input type="number" id="ohPct" value="30" step="5" min="0" inputmode="decimal"><span class="f-unit">%</span></span>
+            </label>
+          </div>
+          <p class="hint" style="margin-top:10px">年度製造費用總額（租金、水電、機台折舊、維修、生管品管採購薪資、廠內搬運）÷ 年度直接工時 = 每工時間接費。你前段有折床、切管單點瓶頸，稼動率抓 65% 比 70% 實際。</p>
+          <div class="subtotal"><span>製造間接費</span><b id="outOverhead">—</b></div>
+        </div>
+      </section>
+
+      <!-- 報價設定 -->
+      <section class="sec">
+        <div class="sec-head">
+          <span class="sec-code">Margin</span>
+          <h2 class="sec-title">報價設定</h2>
+        </div>
+        <div class="sec-body">
+          <div class="grid g2">
+            <label class="field">
+              <span class="f-label"><b>自訂目標毛利率</b></span>
+              <span class="f-box"><input type="number" id="margin" value="25" step="1" min="0" max="90" inputmode="decimal"><span class="f-unit">%</span></span>
+              <span class="hint">售價 = 完整成本 ÷（1 − 毛利率）。<b style="color:var(--alert)">成本 × 1.25 不是 25% 毛利，只有 20%。</b></span>
+            </label>
+            <label class="field">
+              <span class="f-label"><b>客製／少量加價</b></span>
+              <span class="f-box"><input type="number" id="uplift" value="0" step="1" min="0" max="100" inputmode="decimal"><span class="f-unit">%</span></span>
+              <span class="hint">最終建議售價 = 毛利售價 ×（1 ＋ 加價率）</span>
+            </label>
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- 結果盤 -->
+    <div class="panel-col">
+      <div class="panel">
+        <div class="panel-head">
+          <span class="eyebrow" style="margin:0">Cost Breakdown</span>
+          <h2 class="sec-title" style="margin-top:4px">完整成本／台</h2>
+        </div>
+        <div class="panel-body">
+          <div class="stack" id="stack" role="img" aria-label="成本組成比例"></div>
+          <div class="legend" id="legend"></div>
+          <div class="total-row"><span class="lbl">完整成本</span><span class="val" id="totalCost">—</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="eyebrow" style="margin:0">Hours</span>
+          <h2 class="sec-title" style="margin-top:4px">工時分布</h2>
+        </div>
+        <div class="panel-body">
+          <div class="hbar" id="hourBars"></div>
+          <div class="total-row"><span class="lbl">總工時／台</span><span class="val" id="totalHours">—</span></div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="headline">
+          <div class="k">建議售價 · 毛利 <span id="hlMargin">25</span>%<span id="hlUplift"></span></div>
+          <div class="v" id="hlPrice">—</div>
+          <div class="sub" id="hlProfit">—</div>
+        </div>
+        <div class="panel-body">
+          <table class="ladder">
+            <thead><tr><th>毛利率</th><th>售價</th><th>毛利額</th></tr></thead>
+            <tbody id="ladder"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head">
+          <span class="eyebrow" style="margin:0">Warnings</span>
+          <h2 class="sec-title" style="margin-top:4px">漏算警示</h2>
+        </div>
+        <div class="panel-body"><div class="alerts" id="alerts"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= 自製 vs 外購 ================= -->
+  <section class="sec" style="margin-top:24px">
+    <div class="sec-head">
+      <span class="sec-code">Make or Buy</span>
+      <h2 class="sec-title">自製 vs 外購 — 逆向反推</h2>
+      <span class="sec-note">別拿完整成本去比，答案會系統性偏向「買」</span>
+    </div>
+    <div class="sec-body">
+
+      <div class="grid g2">
+        <label class="field">
+          <span class="f-label"><b>目前產能狀況</b></span>
+          <select id="capMode">
+            <option value="idle" selected>有空閒 — 師傅月薪照領，多做一台不多花人事費</option>
+            <option value="ot">要加班才做得完 — 增量人工 60%</option>
+            <option value="full">滿載 — 自製要外聘或排擠別的單，增量人工 100%</option>
+          </select>
+          <span class="hint">這個選項會直接翻轉結論。同一台車、同一個報價，產能有空是「自製」，產能滿載可能是「買」。</span>
+        </label>
+        <label class="field">
+          <span class="f-label"><b>假設對方毛利率</b>（用來反推對方成本）</span>
+          <span class="f-box"><input type="number" id="rivalMargin" value="25" step="1" min="0" max="80" inputmode="decimal"><span class="f-unit">%</span></span>
+          <span class="hint">同業小廠常見 15～30%。不確定就抓 25%。</span>
+        </label>
+      </div>
+
+      <div class="sub-h">外廠報價</div>
+      <div class="rows" id="vendorRows"></div>
+      <button class="btn btn-sm" type="button" id="addVendor" style="margin-top:10px">＋ 新增一家</button>
+
+      <div class="sub-h">三條成本線</div>
+      <div class="mb-scale">
+        <div class="mb-ticks" id="mbMarks" style="position:absolute;top:0;left:0;right:0;height:30px"></div>
+        <div class="mb-track" id="mbTrack"></div>
+        <div class="mb-ticks" id="mbTicks"></div>
+      </div>
+      <div class="mb-zones">
+        <div class="mb-zone"><span class="b" style="background:var(--zone-buy)"></span><span class="t"><b>報價 &lt; 變動成本</b><br>一定買</span></div>
+        <div class="mb-zone"><span class="b" style="background:var(--zone-mid);opacity:.6"></span><span class="t"><b>變動 ~ 現金成本</b><br>有空才做，要加班就買</span></div>
+        <div class="mb-zone"><span class="b" style="background:var(--zone-mid)"></span><span class="t"><b>現金 ~ 完整成本</b><br>有空檔做，滿載就買</span></div>
+        <div class="mb-zone"><span class="b" style="background:var(--zone-make)"></span><span class="t"><b>報價 &gt; 完整成本</b><br>自製有利</span></div>
+      </div>
+
+      <div class="rev">
+        <div class="revcard"><span class="k">變動成本 VC</span><span class="v" id="mbVC">—</span><span class="d">材料＋損耗＋外購＋委外＋耗材＋包材＋運費。不含人工與間接費。</span></div>
+        <div class="revcard"><span class="k">現金成本 CC</span><span class="v" id="mbCC">—</span><span class="d" id="mbCCd">VC ＋ 增量人工。</span></div>
+        <div class="revcard"><span class="k">完整成本 FC</span><span class="v" id="mbFC">—</span><span class="d">全額人工＋間接費，產能滿載時的真實代價。</span></div>
+      </div>
+
+      <div class="sub-h">判定</div>
+      <div class="verdict" id="verdict"></div>
+
+      <div class="sub-h">反推：對方的成本結構 vs 你的</div>
+      <div class="rev" id="reverse"></div>
+
+      <div class="sub-h">數字以外的事（這些不會出現在成本表上）</div>
+      <div class="checks" id="softChecks"></div>
+    </div>
+  </section>
+
+  <!-- 檢查清單 -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-code">Pre-quote Check</span>
+      <h2 class="sec-title">報價前檢查</h2>
+      <span class="progress" id="chkProgress">0 / 0</span>
+    </div>
+    <div class="sec-body">
+      <div class="checks" id="checkList"></div>
+      <p class="hint" style="margin-top:12px">標記 <span class="flag" style="position:relative">值為 0</span> 代表對應欄位還是零——不一定錯，但要確認是真的不用算。</p>
+    </div>
+  </section>
+
+  <div class="foot">
+    <p style="margin:0 0 8px"><strong>流程模型</strong>：拆圖／排版 →〔板材線：下料尺寸→進料→切樣式→折板〕〔管材線：下管→進料→圓鋸裁切，需彎的外包〕〔加工件線：下加工件→進料〕→ 組立定位→氬焊→焊道研磨→拋光→鑽孔攻牙→機械組裝 → 清潔品檢→包裝→出貨（貨運外包）。</p>
+    <p style="margin:0 0 8px"><strong>加工能力邊界</strong>：折床 <code>≤2000mm / ≤2.5mm</code>，超過必須外包。無雷射（切樣式靠切角機、沖床、鋸台、手工，或外包）。無 CNC 車銑（外包）。沖床需有模才划算。彎管外包。</p>
+    <p style="margin:0"><strong>Make-or-Buy 原理</strong>：間接費是沉沒成本，做不做這張單都要付，所以決策要看避免得掉的成本。<code>報價 &lt; VC</code> 一定買；<code>報價 &gt; FC</code> 自製有利；中間看產能。師傅月薪制且產能有空時，自製的真實增量成本只有材料與耗材。</p>
+  </div>
+</div>
+
+
+
+<dialog class="changelog" id="clDialog">
+  <div class="cl-head">
+    <h2>版本更新重點</h2>
+    <button class="btn btn-sm" id="clClose" type="button" style="margin-left:auto">關閉</button>
+  </div>
+  <div class="cl-body" id="clBody"></div>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<!-- 列印用估價單：螢幕上隱藏，列印時取代整頁 -->
+<div id="printDoc" class="print-only"></div>
+
+<script>
+(function(){
+  "use strict";
+  var $ = function(id){ return document.getElementById(id); };
+  var num = function(el){ var v = parseFloat(el && el.value); return isFinite(v) ? v : 0; };
+  var nf0 = new Intl.NumberFormat('zh-TW',{maximumFractionDigits:0});
+  var nf2 = new Intl.NumberFormat('zh-TW',{minimumFractionDigits:2,maximumFractionDigits:2});
+  var money = function(n){ return nf0.format(Math.round(n)); };
+  var hrs = function(n){ return nf2.format(n).replace(/\.00$/,'').replace(/(\.\d)0$/,'$1'); };
+  /* 分鐘顯示：小量只寫分，超過一小時補上時數 */
+  var tm = function(mins){
+    var m = Math.round(mins);
+    if (m < 60) return m + ' 分';
+    return nf0.format(m) + ' 分（' + hrs(m/60) + ' hr）';
+  };
+
+  /* ---------- 版本 ---------- */
+  var APP_VERSION = 'v7';
+  var VERSIONS = [
+    {v:'v7', d:'2026-08-28', t:'快速估價區（可直接輸入）', items:[
+      '新增<b>快速估價區</b>：填「材料費、加工分鐘、其他費用、目標毛利」四格就有答案，客戶電話問價時用',
+      '時薪、間接費率、損耗率<b>沿用全域設定</b>，所以快速估價不是隨便抓 — 同樣條件下跟詳細估價只差 0.2%',
+      '直接列出四檔售價卡片（15/20/25/30%），目標那檔會highlight',
+      '底下有<b>對照行</b>：快速估價 vs 詳細估價差多少。差超過 15% 會轉紅，提醒兩邊有一邊假設錯了',
+      '完全獨立，不會動到下面的詳細估價'
+    ]},
+    {v:'v6', d:'2026-08-28', t:'快速估價條、版本徽章', items:[
+      '頁面上方新增<b>快速估價條</b>，捲動時固定在最上面：<b>料錢＋工錢＋間接費＝總成本</b>，右邊接建議售價與利潤',
+      '三塊加起來剛好等於總成本，數字自己對得起來；利潤同時顯示佔售價幾 %',
+      '工錢下方標出總分鐘數與時薪，一眼看出工錢怎麼來的',
+      '加上<b>版本徽章</b>，點開就是這個更新說明視窗；列印的估價單頁尾也會帶版本號',
+      '移除螢幕底部那條重複的資訊列 — 快速估價條已經涵蓋，而且看得更完整'
+    ]},
+    {v:'v5', d:'2026-08-27', t:'管材價目內建', items:[
+      '管材定尺明細的〈規格〉改成下拉選單，收 <b>大祐 136 個規格</b>，選了自動帶入每支價格與定尺長度',
+      '同規格多等級（A/B）<b>取平均</b>，選後顯示原始價位區間',
+      '價目直接寫死在 index.html 的 <b>TUBE_CATALOG</b>，不連任何 API、不需金鑰，離線可用；漲價直接改數字',
+      '已排除「代剪」代客裁切服務（那是加工費不是管材，10 元/支會誤導）'
+    ]},
+    {v:'v4.1', d:'2026-08-27', t:'PDF 檔名以品名為主', items:[
+      '存 PDF 時自動用 <b>品名_客戶_日期</b> 當檔名，不再每張都叫「不鏽鋼估價台」',
+      '品名欄下方即時顯示存檔檔名，按列印前就知道會存成什麼',
+      '估價日期補零，檔名日期排序才正確'
+    ]},
+    {v:'v4', d:'2026-08-27', t:'可列印／存成 PDF', items:[
+      '列印時介面整個換掉，輸出 <b>A4 單頁估價單</b>，不是網頁截圖',
+      '案件資訊（品名／客戶／圖號／估價人）印在單頭，含簽核欄與手寫備註框',
+      '<b>計算參數快照</b>：時薪、間接費率、損耗率、熟練係數、板材單價、折床尺寸全印上去 — 半年後回頭看舊單才知道當時用什麼算的'
+    ]},
+    {v:'v3', d:'2026-08-27', t:'工時改分鐘、時薪單一設定', items:[
+      '所有工時<b>改填分鐘</b>，不用再換算 0.25 hr',
+      '時薪只在頁面最上方「全域設定」設<b>一次</b>，全部工項共用；移除每列各自的時薪欄',
+      '全域設定顯示每分鐘單價，填分鐘時心裡有數',
+      '本單台數、熟練係數一併移進全域設定'
+    ]},
+    {v:'v2', d:'2026-08-26', t:'依一廠實際製程重建 + 自製vs外購', items:[
+      '流程模型改成一廠實際的三條料線（板材／管材／加工件）匯流到組焊',
+      '新增<b>工程區</b>（拆圖／展開計算／排版）— v1 完全漏算，客製件這塊是大宗',
+      '「組裝」<b>強制拆成七道</b>：組立定位／點焊／氬焊／焊道研磨／拋光／鑽孔攻牙／機械組裝',
+      '新增<b>自製 vs 外購逆向反推</b>：VC／CC／FC 三條成本線隨產能切換判定，並反推外廠成本結構',
+      '折床能力檢查（超過 2,000mm × 2.5mm 自動跳外包），耗材改跟工時連動'
+    ]},
+    {v:'v1', d:'2026-08-26', t:'初版', items:[
+      '材料、人工、耗材、損耗、間接費、包裝運費逐項拆解',
+      '報價階梯 15/20/25/30% ＋ 自訂毛利與客製加價',
+      '漏算警示與報價前檢查清單'
+    ]}
+  ];
+
+  /* ==TUBE-CATALOG-START== */
+  /* 管材價目 — 大祐。直接寫死在這裡，不連任何 API。
+     價格變動就直接改下面的數字，或整段增刪，改完存檔就生效。
+       n  品名（會顯示在下拉選單）
+       p  平均價（元/支）
+       L  定尺長度（mm）
+       lo/hi  同規格多等級時的原始價位區間，只有平均價才有意義時才寫
+     資料來源：2026-08-27 從 Ragic 廠商商品主檔整理，136 個規格（已排除「代剪」代客裁切服務，那不是管材庫存）。 */
+  var TUBE_VENDOR = '大祐';
+  var TUBE_ASOF   = '2026-08-27';
+  var TUBE_CATALOG = [
+    // ── 圓管 ──
+    { n:'圓管 1 1/2x1.2x6m O',          p:  732, L: 6000 },
+    { n:'圓管 1 1/4x1.2x6m',            p:  445, L: 6000 },
+    { n:'圓管 1 1/4x1.5x6m 口 沙',      p:  771, L: 6000 },
+    { n:'圓管 1 1/4x2.0x6m',            p:  859, L: 6000 },
+    { n:'圓管 1"x1..5x6m O 砂',         p:  592, L: 6000 },
+    { n:'圓管 1"x1.2x6m O',             p:  528, L: 6000, lo:  485, hi:  570 },
+    { n:'圓管 1"x1.5x6m',               p:  443, L: 6000 },
+    { n:'圓管 1"x1.5x6m O',             p:  537, L: 6000, lo:  483, hi:  591 },
+    { n:'圓管 1"x2.0x6m O',             p:  661, L: 6000 },
+    { n:'圓管 1/2"x1.2x6m O',           p:  302, L: 6000 },
+    { n:'圓管 1/2"x1.5x6m O',           p:  324, L: 6000 },
+    { n:'圓管 1/2x1.2x6m O',            p:  255, L: 6000 },
+    { n:'圓管 1/2x1.5x6m O',            p:  315, L: 6000, lo:  310, hi:  320 },
+    { n:'圓管 2 1/2x2.0x6m',            p: 2086, L: 6000 },
+    { n:'圓管 2"x1.2x6m',               p:  971, L: 6000 },
+    { n:'圓管 3"x1.5x6m',               p: 1630, L: 6000 },
+    { n:'圓管 3/4"x1.2x6m O',           p:  384, L: 6000, lo:  349, hi:  418 },
+    { n:'圓管 3/4x0.9x6M',              p:  282, L: 6000 },
+    { n:'圓管 3/4x1.2x6m O',            p:  298, L: 6000 },
+    { n:'圓管 3/4x1.5x6m O',            p:  371, L: 6000 },
+    { n:'圓管 3/8x1.2x6m',              p:  310, L: 6000 },
+    { n:'圓管 5/8x1.2x6M',              p:  305, L: 6000 },
+    { n:'圓管 5/8x1.5x6m',              p:  385, L: 6000 },
+    { n:'圓管 5/8x1.5x6m O',            p:  385, L: 6000 },
+    { n:'圓管 7/8x1.2x6M',              p:  390, L: 6000 },
+    { n:'圓管 7/8x1.2x6M O',            p:  360, L: 6000 },
+    { n:'圓管 7/8x1.5x6m O',            p:  510, L: 6000 },
+    // ── 方管 ──
+    { n:'方管 1 "x1.5x6m 沙',           p:  600, L: 6000 },
+    { n:'方管 1 1/2"x1.2x6m 口 沙',     p:  743, L: 6000 },
+    { n:'方管 1 1/2"x1.2x6m 口 金',     p:  840, L: 6000 },
+    { n:'方管 1 1/2"x1.5x6m 口 沙',     p:  980, L: 6000 },
+    { n:'方管 1 1/2"x1.5x6m 口(沙)',    p:  919, L: 6000 },
+    { n:'方管 1 1/2x2.0x6m',            p:  958, L: 6000 },
+    { n:'方管 1 1/2x3.0x6m 口 沙',      p: 2350, L: 6000 },
+    { n:'方管 1 1/4"x1.5x6m 口 沙',     p:  741, L: 6000 },
+    { n:'方管 1 1/4"x2.0x6m 口 沙',     p: 1260, L: 6000 },
+    { n:'方管 1 1/4x1.2X6m',            p:  476, L: 6000 },
+    { n:'方管 1 1/4x1.2x6m 口 沙',      p:  715, L: 6000 },
+    { n:'方管 1 1/4x1.2x6m 口 金',      p:  682, L: 6000, lo:  584, hi:  780 },
+    { n:'方管 1 1/4x1.5x6m 口 沙',      p:  820, L: 6000 },
+    { n:'方管 1 1/4x2.0x6m 沙',         p: 1010, L: 6000 },
+    { n:'方管 1 1/4x2.0x6m 金',         p:  970, L: 6000 },
+    { n:'方管 1 1/4x3.0x6m 口 沙',      p: 1920, L: 6000 },
+    { n:'方管 1"x1.2x6m 口 沙',         p:  533, L: 6000 },
+    { n:'方管 1"x1.2x6M 口 沙',         p:  534, L: 6000 },
+    { n:'方管 1"x1.2x6m 口(金)',        p:  650, L: 6000 },
+    { n:'方管 1"x1.5x6m 沙',            p:  592, L: 6000 },
+    { n:'方管 1"x2.0x6m 口 沙',         p:  729, L: 6000 },
+    { n:'方管 1/2x1.2x6M 口 沙',        p:  350, L: 6000 },
+    { n:'方管 2"x1.2x6m 沙',            p: 1280, L: 6000 },
+    { n:'方管 2"x1.5x6m 口 沙',         p: 1112, L: 6000 },
+    { n:'方管 3/4x1.2x6m 口 沙',        p:  401, L: 6000 },
+    { n:'方管 3/4x1.2x6M 口 沙',        p:  396, L: 6000 },
+    { n:'方管 3/8"x1.2x6m 口 沙',       p:  360, L: 6000 },
+    { n:'方管 5/8x1.2x6M 口 沙',        p:  410, L: 6000 },
+    { n:'方管 60x60x1.5x6M 口 沙',      p: 1674, L: 6000 },
+    { n:'方管 7/8x1.2x6m',              p:  695, L: 6000 },
+    { n:'方管 7/8x1.2x6m 沙',           p:  750, L: 6000 },
+    { n:'方管 7/8x1.5x6m 口沙A',        p:  695, L: 6000 },
+    // ── 扁管 ──
+    { n:'扁管 10x25x1.2x6m 沙',         p:  540, L: 6000 },
+    { n:'扁管 10x30x1.2x6m 2B',         p:  650, L: 6000 },
+    { n:'扁管 10x40x1.2x6m 2B',         p:  760, L: 6000, lo:  730, hi:  790 },
+    { n:'扁管 13x26x1.2x6m 沙',         p:  410, L: 6000 },
+    { n:'扁管 15x30x1.2x6m 沙',         p:  529, L: 6000, lo:  456, hi:  660 },
+    { n:'扁管 15x30x1.5x6m 沙',         p:  690, L: 6000 },
+    { n:'扁管 15x30x2.0x6m 沙',         p:  780, L: 6000 },
+    { n:'扁管 20x40x1.2x6m 沙',         p:  720, L: 6000 },
+    { n:'扁管 20x40x1.2x6m 金A',        p:  684, L: 6000 },
+    { n:'扁管 20x40x1.5x6m 沙',         p:  748, L: 6000, lo:  699, hi:  797 },
+    { n:'扁管 20x40x2.0x6m 沙',         p: 1121, L: 6000, lo: 1092, hi: 1150 },
+    { n:'扁管 20x40x2.0x6m 金',         p:  936, L: 6000 },
+    { n:'扁管 20x80x1.5x6m 2B',         p: 1480, L: 6000 },
+    { n:'扁管 20x80x1.5x6m 拋沙',       p: 1910, L: 6000 },
+    { n:'扁管 25x50x1.2x6m 沙',         p:  762, L: 6000 },
+    { n:'扁管 25x50x1.2x6M 沙',         p:  725, L: 6000 },
+    { n:'扁管 25x50x1.5x6m 沙',         p:  941, L: 6000, lo:  882, hi: 1029 },
+    { n:'扁管 25x50x2.0x6m 沙',         p: 1413, L: 6000 },
+    { n:'扁管 25x75x1.5x6m',            p: 1950, L: 6000 },
+    { n:'扁管 25x75x1.5x6m 2B',         p: 1950, L: 6000 },
+    { n:'扁管 30x60x1.2x6M 口 沙',      p:  899, L: 6000, lo:  859, hi:  938 },
+    { n:'扁管 30x60x1.5x6m 口 沙',      p: 1153, L: 6000 },
+    { n:'扁管 30x60x1.5x6m 沙',         p: 1058, L: 6000 },
+    { n:'扁管 30x60x2.0x6M  沙',        p: 1625, L: 6000 },
+    { n:'扁管 40x80x1.2x6m 沙',         p: 1685, L: 6000 },
+    // ── 圓條 ──
+    { n:'圓條 10mmx6m',                 p:  490, L: 6000 },
+    { n:'圓條 12mmX6M',                 p:  729, L: 6000 },
+    { n:'圓條 4mmx3m',                  p:  110, L: 3000 },
+    { n:'圓條 5mmX3M',                  p:  110, L: 3000 },
+    { n:'圓條 5mmX6m',                  p:  190, L: 6000 },
+    { n:'圓條 5mmX6m 316#',             p:  450, L: 6000 },
+    { n:'圓條 6mmX6m',                  p:  220, L: 6000 },
+    { n:'圓條 7mmX6m',                  p:  285, L: 6000 },
+    { n:'圓條 7mmX6M 316#',             p:  490, L: 6000 },
+    { n:'圓條 8mmX6m',                  p:  372, L: 6000 },
+    // ── 扁鐵 ──
+    { n:'扁鐵 15x2.0x6m',               p:  245, L: 6000 },
+    { n:'扁鐵 15x3.0x6m',               p:  368, L: 6000 },
+    { n:'扁鐵 20x2.0x6m',               p:  390, L: 6000 },
+    { n:'扁鐵 20x3.0x6m',               p:  362, L: 6000 },
+    { n:'扁鐵 20x5.0x6m',               p:  600, L: 6000 },
+    { n:'扁鐵 25x2.0x6m',               p:  300, L: 6000 },
+    { n:'扁鐵 25x3.0x6M',               p:  432, L: 6000 },
+    { n:'扁鐵 25x5.0x6m',               p:  715, L: 6000 },
+    { n:'扁鐵 30x2.0x6m',               p:  362, L: 6000 },
+    { n:'扁鐵 30x3.0x6m',               p:  620, L: 6000 },
+    { n:'扁鐵 30x5.0x6m',               p:  864, L: 6000 },
+    { n:'扁鐵 30x8.0x6.1m',             p: 1500, L: 6100 },
+    { n:'扁鐵 40x2.0x6m',               p:  595, L: 6000 },
+    { n:'扁鐵 40x3.0x6m',               p:  570, L: 6000 },
+    { n:'扁鐵 40x5.0x6mm',              p: 1380, L: 6000 },
+    { n:'扁鐵 50x10x6.1M',              p: 2750, L: 6100 },
+    { n:'扁鐵 50x5.0x6m',               p: 1400, L: 6000 },
+    // ── 角鐵 ──
+    { n:'角鐵 1 1/2x2.0x6M',            p:  910, L: 6000 },
+    { n:'角鐵 1 1/4x2.0x6m',            p:  620, L: 6000 },
+    { n:'角鐵 1 1/4x2.0x6M 金',         p:  810, L: 6000 },
+    { n:'角鐵 1 1/4x3.0x6m',            p:  840, L: 6000 },
+    { n:'角鐵 1"x2.0x6M',               p:  510, L: 6000 },
+    { n:'角鐵 1"x2.0x6M 金',            p:  450, L: 6000 },
+    { n:'角鐵 1"x3.0x6m',               p:  705, L: 6000 },
+    { n:'角鐵 2"x3.0x6.0m',             p: 1485, L: 6000 },
+    // ── 黑角鐵 ──
+    { n:'黑角鐵 1 1/2x2.5x6m',          p:  720, L: 6000 },
+    // ── 其他 ──
+    { n:'(1 1/2"x1.2)Ox1"Ox150x3M B 相對金', p:  810, L: 3000 },
+    { n:'(2"x1.5)口x1"Ox150x3M A 相對金', p: 1150, L: 3000 },
+    { n:'方條 12mmX6M',                 p: 1167, L: 6000 },
+    { n:'沖(1 1/4x1.2)x3/4○x90x6m單A(訂)', p:  725, L: 6000 },
+    { n:'沖(1 1/4x1.2)x3/4○x90x6m雙A(訂)', p:  825, L: 6000 },
+    { n:'沖(1 1/4x1.2)x3/4口x110x6M雙(訂)', p:  690, L: 6000 },
+    { n:'沖(1 1/4x1.2)x3/4Ox110x6M單(訂)', p:  735, L: 6000 },
+    { n:'沖(1 1/4x1.2)x3/4Ox110x6M雙(訂)', p:  835, L: 6000 },
+    { n:'配管 101.6x2.0x200mm 切實',    p:  350, L:  200 },
+    { n:'配管 21.7x2.0x6m',             p:  720, L: 6000 },
+    { n:'配管 26.4x2.5x6m',             p:  790, L: 6000 },
+    { n:'配管 33.4x2.0x6m O',           p: 1053, L: 6000 },
+    { n:'配管 33.4x4.0x6m O',           p: 1906, L: 6000 },
+    { n:'黑扁管 25x50x1.5x6m',          p:  520, L: 6000 },
+    { n:'黑扁管 30x60x1.5x6m',          p:  595, L: 6000 },
+    { n:'黑扁管 30x60x1.5x6m 沙',       p: 1225, L: 6000 },
+  ];
+  /* ==TUBE-CATALOG-END== */
+
+  /* ---------- 製程定義（工時單位：分鐘）---------- */
+  var ENG = [
+    {k:'draw',  n:'拆圖／展開計算／排版', m:90},
+    {k:'purch', n:'發包／採購／追料點收', m:30}
+  ];
+  var PLATE_P = [
+    {k:'recv',  n:'進料點收',                        m:15},
+    {k:'shape', n:'切樣式（含修毛邊）',              m:45, dyn:true},
+    {k:'bendp', n:'折板',                            m:30}
+  ];
+  var TUBE_P = [
+    {k:'sawcut', n:'圓鋸裁切／去毛邊', m:25}
+  ];
+  var WELD_P = [
+    {k:'jig',    n:'組立定位／治具',                  m:30},
+    {k:'spot',   n:'點焊固定',                        m:15},
+    {k:'tig',    n:'氬焊',                            m:90,  hot:true},
+    {k:'grind',  n:'焊道研磨',                        m:120, hot:true},
+    {k:'polish', n:'拋光／拉紋',                      m:45,  hot:true},
+    {k:'drill',  n:'鑽孔／攻牙',                      m:30},
+    {k:'asm',    n:'機械組裝（加工件／輪子／五金）',  m:30}
+  ];
+  var SHIP_P = [
+    {k:'clean', n:'清潔／品檢', m:25},
+    {k:'pack',  n:'包裝',       m:15}
+  ];
+  var ALL_P = ENG.concat(PLATE_P, TUBE_P, WELD_P, SHIP_P);
+
+  /* 時薪只有一個來源：全域設定的 #rate */
+  function theRate(){ return num($('rate')); }
+
+  function buildProcTable(tbody, list){
+    list.forEach(function(p){
+      var tr = document.createElement('tr');
+      if (p.hot) tr.className = 'hot';
+      tr.innerHTML =
+        '<td>' + p.n + '</td>' +
+        '<td><span class="f-box"><input type="number" id="m_' + p.k + '" value="' + p.m + '" step="5" min="0" inputmode="numeric" aria-label="' + p.n + ' 分鐘"><span class="f-unit">分</span></span></td>' +
+        '<td class="amt" id="s_' + p.k + '">—</td>';
+      tbody.appendChild(tr);
+    });
+  }
+  buildProcTable($('engRows'), ENG);
+  // 切樣式的工時輸入已獨立在上方，這裡只放點收與折板
+  buildProcTable($('plateProcRows'), PLATE_P.filter(function(p){ return !p.dyn; }));
+  buildProcTable($('tubeProcRows'), TUBE_P);
+  buildProcTable($('weldProcRows'), WELD_P);
+  buildProcTable($('shipProcRows'), SHIP_P);
+
+  /* ---------- 模式 ---------- */
+  var mode = { plate:'weight', tube:'total', shape:'self' };
+
+  /* ---------- 動態列 ---------- */
+  var plateSeq = 0, tubeSeq = 0, vendorSeq = 0;
+
+  function addPlateRow(d){
+    d = d || {}; var id = ++plateSeq;
+    var div = document.createElement('div');
+    div.className = 'mrow';
+    div.innerHTML =
+      '<label class="field"><span class="f-label">品名</span><span class="f-box"><input type="text" class="p-name" value="' + (d.name || '板件 ' + id) + '"></span></label>' +
+      '<label class="field"><span class="f-label">長 mm</span><span class="f-box"><input type="number" class="p-l" value="' + (d.l||0) + '" step="1" min="0" inputmode="decimal"></span></label>' +
+      '<label class="field"><span class="f-label">寬 mm</span><span class="f-box"><input type="number" class="p-w" value="' + (d.w||0) + '" step="1" min="0" inputmode="decimal"></span></label>' +
+      '<label class="field"><span class="f-label">厚 mm</span><span class="f-box"><input type="number" class="p-t" value="' + (d.t||0) + '" step="0.1" min="0" inputmode="decimal"></span></label>' +
+      '<label class="field"><span class="f-label">數量</span><span class="f-box"><input type="number" class="p-q" value="' + (d.q==null?1:d.q) + '" step="1" min="0" inputmode="decimal"></span></label>' +
+      '<button class="del" type="button" aria-label="刪除這片">×</button>';
+    div.querySelector('.del').addEventListener('click', function(){ div.remove(); calc(); });
+    $('plateRows').appendChild(div);
+  }
+
+  function addTubeRow(d){
+    d = d || {}; var id = ++tubeSeq;
+    var div = document.createElement('div');
+    div.className = 'mrow tube';
+    div.innerHTML =
+      '<label class="field pick"><span class="f-label">規格<span class="pick-src" data-role="src"></span></span>' +
+        '<select class="t-pick">' + catalogOptions() + '</select>' +
+        '<span class="f-box" style="margin-top:6px"><input type="text" class="t-name" value="' + (d.name || '管材 ' + id) + '"></span></label>' +
+      '<label class="field"><span class="f-label">每支價格 元</span><span class="f-box"><input type="number" class="t-price" value="' + (d.price||0) + '" step="1" min="0" inputmode="decimal"></span></label>' +
+      '<label class="field"><span class="f-label">每支長度 mm</span><span class="f-box"><input type="number" class="t-len" value="' + (d.len||6000) + '" step="100" min="1" inputmode="decimal"></span></label>' +
+      '<label class="field"><span class="f-label">使用總長 mm</span><span class="f-box"><input type="number" class="t-use" value="' + (d.use||0) + '" step="10" min="0" inputmode="decimal"></span></label>' +
+      '<button class="del" type="button" aria-label="刪除這列">×</button>';
+    div.querySelector('.del').addEventListener('click', function(){ div.remove(); calc(); });
+    div.querySelector('.t-pick').addEventListener('change', function(){
+      var it = TUBE_CATALOG[parseInt(this.value, 10)];
+      var src = div.querySelector('[data-role="src"]');
+      if (!it){ src.textContent = ''; calc(); return; }
+      div.querySelector('.t-name').value = it.n;
+      div.querySelector('.t-price').value = it.p;
+      div.querySelector('.t-len').value = it.L;
+      src.textContent = it.lo
+        ? '　多等級平均（' + it.lo + '～' + it.hi + '）'
+        : '　' + TUBE_VENDOR + '單一價';
+      calc();
+    });
+    $('tubeRows').appendChild(div);
+  }
+
+  function tubeType(name){
+    var m = String(name).match(/^(黑角鐵|白鐵角鐵|角鐵|方管|圓管|扁管|圓條|扁鐵|槽鐵|H型鋼)/);
+    return m ? m[1] : '其他';
+  }
+
+  function catalogOptions(){
+    if (!TUBE_CATALOG.length) return '<option value="">（沒有價目，請手動輸入）</option>';
+    var byType = {};
+    TUBE_CATALOG.forEach(function(c, i){
+      var t = tubeType(c.n);
+      (byType[t] = byType[t] || []).push(i);
+    });
+    var html = '<option value="">— 手動輸入 —</option>';
+    Object.keys(byType).forEach(function(t){
+      html += '<option disabled>── ' + t + ' ──</option>';
+      byType[t].forEach(function(i){
+        var c = TUBE_CATALOG[i];
+        html += '<option value="' + i + '">' + c.n + '　' + c.p + ' 元/支' +
+                (c.lo ? '（平均）' : '') + '</option>';
+      });
+    });
+    return html;
+  }
+
+  function addVendorRow(d){
+    d = d || {}; var id = ++vendorSeq;
+    var div = document.createElement('div');
+    div.className = 'mrow vendor';
+    div.innerHTML =
+      '<label class="field"><span class="f-label">廠商</span><span class="f-box"><input type="text" class="v-name" value="' + (d.name || String.fromCharCode(64+id) + ' 廠') + '"></span></label>' +
+      '<label class="field"><span class="f-label">報價 元／台</span><span class="f-box"><input type="number" class="v-price" value="' + (d.price||0) + '" step="100" min="0" inputmode="decimal"></span></label>' +
+      '<label class="chk" style="align-self:end;padding-bottom:9px"><input type="checkbox" class="v-freight"' + (d.freight?' checked':'') + '><span class="txt" style="font-size:12px">含運費</span></label>' +
+      '<label class="chk" style="align-self:end;padding-bottom:9px"><input type="checkbox" class="v-draw"' + (d.draw?' checked':'') + '><span class="txt" style="font-size:12px">含拆圖</span></label>' +
+      '<button class="del" type="button" aria-label="刪除這家">×</button>';
+    div.querySelector('.del').addEventListener('click', function(){ div.remove(); calc(); });
+    $('vendorRows').appendChild(div);
+  }
+
+  /* ---------- 成本區段 ---------- */
+  var SEGMENTS = [
+    {k:'plate',   n:'板材',        v:'--s-plate'},
+    {k:'tube',    n:'管材',        v:'--s-tube'},
+    {k:'parts',   n:'加工件／外購件', v:'--s-parts'},
+    {k:'scrap',   n:'材料損耗',    v:'--s-scrap'},
+    {k:'outsrc',  n:'委外成形',    v:'--s-outsrc'},
+    {k:'eng',     n:'工程人工',    v:'--s-eng'},
+    {k:'mfg',     n:'製造人工',    v:'--s-mfg'},
+    {k:'cons',    n:'耗材',        v:'--s-cons'},
+    {k:'oh',      n:'製造間接費',  v:'--s-oh'},
+    {k:'pack',    n:'包裝材料',    v:'--s-pack'},
+    {k:'freight', n:'運費',        v:'--s-freight'},
+    {k:'misc',    n:'其他風險',    v:'--s-misc'}
+  ];
+  var segNodes = {}, liNodes = {};
+  SEGMENTS.forEach(function(s){
+    var sp = document.createElement('span');
+    sp.style.background = 'var(' + s.v + ')'; sp.style.flex = '0 0 0%';
+    $('stack').appendChild(sp); segNodes[s.k] = sp;
+    var li = document.createElement('div');
+    li.className = 'li';
+    li.innerHTML = '<span class="sw" style="background:var(' + s.v + ')"></span><span class="nm">' + s.n +
+      '</span><span class="pc"></span><span class="vl">0</span>';
+    $('legend').appendChild(li); liNodes[s.k] = li;
+  });
+
+  /* ---------- 工時分群 ---------- */
+  var HGROUPS = [
+    {k:'eng',   n:'工程',       list:ENG},
+    {k:'plate', n:'板材線',     list:PLATE_P},
+    {k:'tube',  n:'管材線',     list:TUBE_P},
+    {k:'weld',  n:'組焊表面',   list:WELD_P},
+    {k:'ship',  n:'清潔包裝',   list:SHIP_P}
+  ];
+  var hbNodes = {};
+  HGROUPS.forEach(function(g){
+    var d = document.createElement('div');
+    d.className = 'hb';
+    d.innerHTML = '<span class="n">' + g.n + '</span><span class="t"><i style="width:0%"></i></span><span class="v">0</span>';
+    $('hourBars').appendChild(d); hbNodes[g.k] = d;
+  });
+
+  /* ---------- 快速估價的四檔卡片 ---------- */
+  var QK_TIERS = [{m:15,t:'最低成交'},{m:20,t:''},{m:25,t:'正常'},{m:30,t:'建議'}];
+  QK_TIERS.forEach(function(t){
+    var d = document.createElement('div');
+    d.className = 'qk-tier';
+    d.innerHTML = '<span class="k">毛利 ' + t.m + '%' + (t.t ? ' ' + t.t : '') + '</span><span class="v">—</span>';
+    $('qkTiers').appendChild(d); t.el = d;
+  });
+
+  /* ---------- 售價階梯 ---------- */
+  var TIERS = [
+    {m:15, tag:'最低成交'}, {m:20, tag:''}, {m:25, tag:'正常報價'}, {m:30, tag:'建議報價'}
+  ];
+  TIERS.forEach(function(t){
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<td>' + t.m + '%' + (t.tag ? '<span class="tag">' + t.tag + '</span>' : '') +
+      '</td><td class="p">—</td><td class="g">—</td>';
+    $('ladder').appendChild(tr); t.el = tr;
+  });
+
+  /* ---------- 檢查清單 ---------- */
+  var CHECKS = [
+    {t:'拆圖／展開計算工時是否算了？',        f:'draw'},
+    {t:'發包採購追料的時間是否算了？',        f:'purch'},
+    {t:'板材是否包含切樣式的邊料損耗？',      f:'scrap'},
+    {t:'管材是否包含定尺餘料？',              f:'tubewhole'},
+    {t:'切樣式（切角／沖床／手工）是否計算？',f:'shape'},
+    {t:'折板是否計算？超過 2m 或 2.5mm 了嗎？',f:'bend'},
+    {t:'彎管外包是否計算？',                  f:'bendqty'},
+    {t:'組立定位與治具時間是否計算？',        f:'jig'},
+    {t:'氬焊工時是否低估？',                  f:'tig'},
+    {t:'焊道研磨工時是否低估？',              f:'grind'},
+    {t:'拋光／拉紋是否計算？',                f:'polish'},
+    {t:'鑽孔／攻牙（手工）是否計算？',        f:'drill'},
+    {t:'機械組裝（輪子五金）是否計算？',      f:'asm'},
+    {t:'清潔／品檢是否計算？',                f:'clean'},
+    {t:'氬氣／砂輪片／百葉片是否計算？',      f:'cons'},
+    {t:'水電／租金／機台折舊是否計算？',      f:'oh'},
+    {t:'包裝材料是否計算？',                  f:'packmat'},
+    {t:'運費是否計算？',                      f:'freight'},
+    {t:'客製修改／重工／報廢風險是否保留？',  f:'misc'}
+  ];
+  CHECKS.forEach(function(c,i){
+    var lab = document.createElement('label');
+    lab.className = 'chk';
+    lab.innerHTML = '<input type="checkbox" data-chk="' + i + '"><span class="txt">' + c.t +
+      '<span class="flag" data-flag="' + c.f + '" hidden>值為 0</span></span>';
+    $('checkList').appendChild(lab);
+  });
+  $('chkProgress').textContent = '0 / ' + CHECKS.length;
+  $('checkList').addEventListener('change', function(){
+    var b = $('checkList').querySelectorAll('input[type=checkbox]'), d = 0;
+    for (var i=0;i<b.length;i++) if (b[i].checked) d++;
+    $('chkProgress').textContent = d + ' / ' + b.length;
+  });
+
+  /* ---------- 非成本檢查 ---------- */
+  var SOFT = [
+    '交期：自製排得進去嗎？折床和切管各只有一台，是單點瓶頸',
+    '品質：外觀等級你有 7 台氬焊、12 支砂輪的優勢，外廠磨得比你細嗎',
+    'QMS：委外要做供應商評鑑、簽品質協議、進料檢驗紀錄（第一等級醫材製造業者責任）',
+    '修改彈性：客製件一定會改，自己做改得動，外包改一次加一次錢',
+    '技術外流：圖給了外廠，對方學會之後會不會直接接你的客戶',
+    '付款條件：外購要現金流，自製攤在既有薪資上',
+    '工時數據：自己做過才拿得到真實工時，估價才會越來越準'
+  ];
+  SOFT.forEach(function(t,i){
+    var lab = document.createElement('label');
+    lab.className = 'chk';
+    lab.innerHTML = '<input type="checkbox" data-soft="' + i + '"><span class="txt">' + t + '</span>';
+    $('softChecks').appendChild(lab);
+  });
+
+  /* ---------- 主計算 ---------- */
+  function calc(){
+    var qty = Math.max(1, num($('batchQty')));
+    var learn = num($('learnRate')) / 100;
+    if (!(learn > 0)) learn = 1;
+    var mfgFactor = (1 + (qty - 1) * learn) / qty;   // 平均每台製造工時係數
+
+    /* --- 板材材料 --- */
+    var wCalc = 0, dens = parseFloat($('density').value) || 7.93;
+    var pRows = $('plateRows').querySelectorAll('.mrow');
+    for (var i=0;i<pRows.length;i++){
+      var r = pRows[i];
+      wCalc += num(r.querySelector('.p-l')) * num(r.querySelector('.p-w')) *
+               num(r.querySelector('.p-t')) * dens / 1e6 * num(r.querySelector('.p-q'));
+    }
+    $('plateWeightCalc').textContent = nf2.format(wCalc) + ' kg';
+    if (mode.plate === 'dim'){ $('plateWeight').value = wCalc ? wCalc.toFixed(2) : 0; $('plateWeight').disabled = true; }
+    else { $('plateWeight').disabled = false; }
+    var plate = num($('plateWeight')) * num($('platePrice'));
+
+    /* --- 管材材料 --- */
+    var tube = 0, tubeWhole = $('tubeWhole').checked;
+    if (mode.tube === 'total'){ tube = num($('tubeTotal')); }
+    else {
+      var tRows = $('tubeRows').querySelectorAll('.mrow');
+      for (var j=0;j<tRows.length;j++){
+        var t2 = tRows[j];
+        var pr = num(t2.querySelector('.t-price')), ln = num(t2.querySelector('.t-len')) || 6000,
+            us = num(t2.querySelector('.t-use'));
+        if (!us || !pr) continue;
+        tube += tubeWhole ? Math.ceil(us/ln) * pr : (us/ln) * pr;
+      }
+    }
+
+    var machParts = num($('machParts')), buyParts = num($('buyParts')), otherOut = num($('otherOut'));
+    var parts = machParts + buyParts;
+
+    /* --- 切樣式：自製 vs 外包 --- */
+    var rate = theRate();
+    var shapeM = num($('m_shape')), shapeH = shapeM / 60;
+    var shapeSelf = shapeH * rate, shapeLaser = num($('shapeLaser'));
+    $('shapeSelfCost').textContent = money(shapeSelf) + ' 元';
+    $('shapeLaserCost').textContent = money(shapeLaser) + ' 元';
+    var useLaser = (mode.shape === 'laser');
+    $('shapeSelfSide').classList.toggle('win', !useLaser);
+    $('shapeLaserSide').classList.toggle('win', useLaser);
+    var shapeHint = '';
+    if (shapeSelf > 0 && shapeLaser > 0){
+      var diff = shapeSelf - shapeLaser;
+      shapeHint = diff > 0
+        ? '外包雷射便宜 ' + money(diff) + ' 元，而且省下 ' + tm(shapeM) + ' 的廠內產能。'
+        : '廠內自切便宜 ' + money(-diff) + ' 元 — 但要確認這 ' + tm(shapeM) + ' 沒有排擠到別的單。';
+    } else if (shapeLaser === 0 && shapeSelf > 0){
+      shapeHint = '還沒填外包雷射報價。客製異形件多的時候值得問一次，你沒有雷射，手工切很吃工。';
+    }
+    $('shapeHint').textContent = shapeHint;
+
+    /* --- 折床能力檢查 --- */
+    var bl = num($('bendLen')), bt = num($('bendThk')), bendOut = num($('bendOut'));
+    var overLen = bl > 2000, overThk = bt > 2.5;
+    var cc = $('bendCheck');
+    if (overLen || overThk){
+      cc.className = 'capcheck no';
+      var why = [];
+      if (overLen) why.push('折邊 ' + nf0.format(bl) + ' mm 超過 2,000 mm');
+      if (overThk) why.push('板厚 ' + bt + ' mm 超過 2.5 mm');
+      cc.innerHTML = '<b>超出折床能力</b>　' + why.join('、') + '　→ 必須外包折床，記得填外包費用、來回運費與交期。';
+    } else if (bl === 0 && bt === 0){
+      cc.className = 'capcheck ok';
+      cc.innerHTML = '沒有折板作業，或還沒填折邊尺寸。';
+    } else {
+      cc.className = 'capcheck ok';
+      cc.innerHTML = '<b>廠內折得動</b>　折邊 ' + nf0.format(bl) + ' mm ／ 板厚 ' + bt + ' mm，在 2,000 mm × 2.5 mm 能力內。';
+    }
+
+    /* --- 彎管外包 --- */
+    var tubeBend = num($('bendQty')) * num($('bendPrice')) + num($('bendSetup')) / qty;
+
+    /* --- 委外成形合計 --- */
+    var outsrc = (useLaser ? shapeLaser : 0) + bendOut + tubeBend + otherOut;
+
+    /* --- 工時與人工（輸入單位為分鐘，時薪全域共用）--- */
+    var engM = 0;
+    ENG.forEach(function(p){
+      var mm = num($('m_' + p.k));
+      engM += mm;
+      var sub = mm / 60 * rate;
+      $('s_' + p.k).textContent = sub ? money(sub) : '—';
+    });
+    engM /= qty;
+    var engH = engM / 60, engCost = engH * rate;
+
+    var mfgM = 0;
+    var groupM = { eng: engM, plate:0, tube:0, weld:0, ship:0 };
+
+    function accum(list, gk){
+      list.forEach(function(p){
+        var mm = p.dyn ? (useLaser ? 0 : shapeM) : num($('m_' + p.k));
+        var eff = mm * mfgFactor;
+        groupM[gk] += eff; mfgM += eff;
+        if (!p.dyn){
+          var cell = $('s_' + p.k);
+          if (cell) cell.textContent = mm ? money(eff / 60 * rate) : '—';
+        }
+      });
+    }
+    accum(PLATE_P, 'plate');
+    accum(TUBE_P, 'tube');
+    accum(WELD_P, 'weld');
+    accum(SHIP_P, 'ship');
+
+    var mfgH = mfgM / 60, mfgCost = mfgH * rate;
+
+    $('weldHours').textContent = tm(groupM.weld);
+    $('outWeld').textContent = money(groupM.weld / 60 * rate) + ' 元';
+
+    $('fileNameHint').textContent = quoteFileName() + '.pdf';
+
+    $('rateStrip').innerHTML =
+      '每分鐘 <b>' + nf2.format(rate/60) + '</b> 元　·　' +
+      '每 10 分鐘 <b>' + money(rate/6) + '</b> 元　·　' +
+      '本單 <b>' + qty + '</b> 台，第二台起工時 ×<b>' + Math.round(learn*100) + '%</b>' +
+      (qty > 1 ? '（平均係數 ' + nf2.format(mfgFactor) + '）' : '');
+
+    var totalM = engM + mfgM;
+    var totalH = totalM / 60;
+    var labor = engCost + mfgCost;
+
+    /* --- 耗材（跟工時連動） --- */
+    var tigH = num($('m_tig')) * mfgFactor / 60;
+    var gpH = (num($('m_grind')) + num($('m_polish'))) * mfgFactor / 60;
+    var cons = tigH * num($('argonRate')) + gpH * num($('grindRate')) + num($('consOther'));
+    $('outCons').textContent = money(cons) + ' 元';
+
+    /* --- 損耗 --- */
+    var scrapRate = num($('scrapRate'));
+    var scrap = (plate + tube) * scrapRate / 100;
+
+    /* --- 間接費 --- */
+    var ohMode = $('ohMode').value, oh = 0;
+    if (ohMode === 'fixed')     oh = num($('ohFixed'));
+    else if (ohMode === 'pct')  oh = labor * num($('ohPct')) / 100;
+    else                        oh = totalH * num($('ohHour'));
+
+    var packMat = num($('packMat')), freight = num($('freight')), misc = num($('misc'));
+
+    var vals = {
+      plate:plate, tube:tube, parts:parts, scrap:scrap, outsrc:outsrc,
+      eng:engCost, mfg:mfgCost, cons:cons, oh:oh,
+      pack:packMat, freight:freight, misc:misc
+    };
+    var total = 0; for (var k in vals) total += vals[k];
+
+    /* --- 顯示 --- */
+    $('outEng').textContent  = money(engCost) + ' 元';
+    $('outPlate').textContent = money(plate) + ' 元';
+    $('outTube').textContent  = money(tube) + ' 元';
+    $('outOverhead').textContent = money(oh) + ' 元';
+
+    SEGMENTS.forEach(function(s){
+      var v = vals[s.k], pct = total > 0 ? v/total*100 : 0;
+      segNodes[s.k].style.flex = '0 0 ' + pct + '%';
+      var li = liNodes[s.k];
+      li.classList.toggle('zero', v === 0);
+      li.querySelector('.pc').textContent = (total>0 && v>0) ? pct.toFixed(1) + '%' : '';
+      li.querySelector('.vl').textContent = money(v);
+    });
+    $('totalCost').textContent = money(total);
+
+    var maxH = 0;
+    HGROUPS.forEach(function(g){ if (groupM[g.k] > maxH) maxH = groupM[g.k]; });
+    HGROUPS.forEach(function(g){
+      var d = hbNodes[g.k];
+      d.querySelector('i').style.width = (maxH > 0 ? groupM[g.k]/maxH*100 : 0) + '%';
+      d.querySelector('.v').textContent = Math.round(groupM[g.k]) + ' 分';
+    });
+    $('totalHours').textContent = tm(totalM);
+
+    /* --- 售價 --- */
+    var upl = num($('uplift'))/100;
+    function priceAt(mp){ var m = Math.min(mp/100, 0.95); return total/(1-m)*(1+upl); }
+    var mT = num($('margin')), pT = priceAt(mT);
+    $('hlMargin').textContent = hrs(mT);
+    $('hlUplift').textContent = upl > 0 ? '　＋客製加價 ' + hrs(upl*100) + '%' : '';
+    $('hlPrice').textContent = total > 0 ? 'NT$ ' + money(pT) : '—';
+    $('hlProfit').textContent = total > 0
+      ? '毛利額 ' + money(pT/(1+upl) - total) + ' 元　·　成本 ' + money(total) + ' 元' : '請先輸入成本';
+    TIERS.forEach(function(t){
+      var p = priceAt(t.m);
+      t.el.querySelector('.p').textContent = total > 0 ? money(p) : '—';
+      t.el.querySelector('.g').textContent = total > 0 ? money(p/(1+upl) - total) : '—';
+      t.el.classList.toggle('mark', Math.abs(t.m - mT) < 0.001);
+    });
+
+    /* ============ Make or Buy ============ */
+    var capMode = $('capMode').value;
+    var kFactor = capMode === 'idle' ? 0 : (capMode === 'ot' ? 0.6 : 1.0);
+    var VC = plate + tube + parts + scrap + outsrc + cons + packMat + freight + misc;
+    var CC = VC + labor * kFactor;
+    var FC = total;
+    $('mbVC').textContent = money(VC);
+    $('mbCC').textContent = money(CC);
+    $('mbFC').textContent = money(FC);
+    $('mbCCd').textContent = capMode === 'idle'
+      ? 'VC ＋ 增量人工 0%（產能有空，師傅月薪照領）＝ 與變動成本相同。'
+      : (capMode === 'ot' ? 'VC ＋ 增量人工 60%（加班費）。' : 'VC ＋ 增量人工 100%（外聘或排擠別單）。');
+
+    /* 讀外廠報價 */
+    var vendors = [];
+    var vRows = $('vendorRows').querySelectorAll('.mrow');
+    for (var q=0;q<vRows.length;q++){
+      var vr = vRows[q];
+      var price = num(vr.querySelector('.v-price'));
+      if (!price) continue;
+      vendors.push({
+        name: (vr.querySelector('.v-name').value || '外廠').trim(),
+        price: price,
+        inclFreight: vr.querySelector('.v-freight').checked,
+        inclDraw: vr.querySelector('.v-draw').checked
+      });
+    }
+
+    /* 量尺 */
+    var maxScale = FC;
+    vendors.forEach(function(v){ if (v.price > maxScale) maxScale = v.price; });
+    maxScale = maxScale * 1.18 || 1;
+    function pos(x){ return Math.max(0, Math.min(100, x/maxScale*100)); }
+
+    $('mbTrack').innerHTML =
+      '<span style="flex:0 0 ' + pos(VC) + '%;background:var(--zone-buy)"></span>' +
+      '<span style="flex:0 0 ' + Math.max(0,(pos(CC)-pos(VC))) + '%;background:var(--zone-mid);opacity:.45"></span>' +
+      '<span style="flex:0 0 ' + Math.max(0,(pos(FC)-pos(CC))) + '%;background:var(--zone-mid)"></span>' +
+      '<span style="flex:1 1 auto;background:var(--zone-make)"></span>';
+
+    var ticks = (Math.abs(CC - VC) < 1)
+      ? [{v:VC,l:'VC = CC'},{v:FC,l:'FC'}]
+      : [{v:VC,l:'VC'},{v:CC,l:'CC'},{v:FC,l:'FC'}];
+    $('mbTicks').innerHTML = ticks.map(function(t){
+      return '<span class="mb-tick" style="left:' + pos(t.v) + '%"><i></i>' + t.l + '<br>' + money(t.v) + '</span>';
+    }).join('');
+    $('mbMarks').innerHTML = vendors.map(function(v){
+      return '<span class="mb-mark" style="left:' + pos(v.price) + '%"><span class="lb">' +
+        v.name + ' ' + money(v.price) + '</span><span class="pin"></span></span>';
+    }).join('');
+
+    /* 判定 */
+    var vd = $('verdict');
+    vd.innerHTML = '';
+    if (!vendors.length){
+      vd.innerHTML = '<div class="ok-state">填入至少一家外廠報價，就會出現判定與盈虧平衡點。</div>';
+    }
+    vendors.forEach(function(v){
+      // 比較基準調整
+      var P = v.price;
+      var note = [];
+      if (!v.inclFreight && freight > 0){ P += freight; note.push('報價不含運，加回 ' + money(freight)); }
+      var vcC = VC, ccC = CC, fcC = FC;
+      if (!v.inclDraw && engCost > 0){
+        // 拆圖兩邊都要做 → 從自製成本扣除，不列入比較
+        fcC -= engCost; ccC -= engCost * kFactor;
+        note.push('拆圖你自己做，兩邊都有，比較時已扣除 ' + money(engCost));
+      }
+      // 以目前產能狀況決定該用哪一條成本線比
+      var thr, thrName, capName;
+      if (capMode === 'idle'){ thr = vcC; thrName = '變動成本'; capName = '產能有空'; }
+      else if (capMode === 'ot'){ thr = ccC; thrName = '現金成本'; capName = '要加班'; }
+      else { thr = fcC; thrName = '完整成本'; capName = '產能滿載'; }
+      var gain = P - thr;
+
+      var cls, txt, why;
+      if (gain > thr * 0.05){
+        cls = 'make'; txt = '自己做';
+        why = capName + '的情況下，自製只多花 ' + thrName + ' <em>' + money(thr) + '</em>，報價 <em>' +
+              money(P) + '</em> 高出 <em>' + money(gain) + '</em>／台 — 自己做。';
+      } else if (gain < -thr * 0.05){
+        cls = 'buy'; txt = '直接買';
+        why = capName + '的情況下，自製要花 ' + thrName + ' <em>' + money(thr) + '</em>，已經高於報價 <em>' +
+              money(P) + '</em>，差 <em>' + money(-gain) + '</em>／台 — 買比較划算。';
+      } else {
+        cls = 'dep'; txt = '幾乎打平';
+        why = '自製的' + thrName + ' <em>' + money(thr) + '</em> 與報價 <em>' + money(P) +
+              '</em> 差距不到 5%，成本上沒有明顯優劣。改看交期、品質與修改彈性。';
+      }
+
+      // 落在哪一區的補充說明
+      var zone;
+      if (P < vcC) zone = '報價低於你的變動成本，對方賣得比你的料錢還便宜 — 查一下是不是規格有落差或對方報錯。';
+      else if (P < ccC) zone = '報價落在變動成本與現金成本之間：有空閒才划算，一旦要加班就會反轉。';
+      else if (P < fcC) zone = '報價落在現金成本與完整成本之間：能吸收一部分間接費（' +
+        money(P - ccC) + '），但吸收不完，還差 ' + money(fcC - P) + '。';
+      else zone = '報價高於你的完整成本，連間接費都能全額回收。';
+
+      var warn = '';
+      if (capMode === 'idle' && P < fcC){
+        warn = '<br><span style="color:var(--alert);font-size:12px">長期都用「產能有空」決策，等於永遠不把間接費算進去。' +
+               '這台車少回收 <em>' + money(fcC - P) + '</em> 的間接費，偶爾填產能可以，變成常態年底就會發現整年白做。</span>';
+      }
+
+      var row = document.createElement('div');
+      row.className = 'vrow';
+      row.innerHTML =
+        '<span class="who">' + v.name + '<small>報價 ' + money(v.price) + ' 元</small></span>' +
+        '<span class="pill ' + cls + '">' + txt + '</span>' +
+        '<span class="why">' + why +
+        '<br><span style="color:var(--ink-3);font-size:12px">' + zone +
+        (note.length ? '　·　' + note.join('；') : '') + '</span>' + warn + '</span>';
+      vd.appendChild(row);
+    });
+
+    /* 反推對方成本 */
+    var rv = $('reverse');
+    rv.innerHTML = '';
+    if (vendors.length){
+      var v0 = vendors[0];
+      var rm = Math.min(num($('rivalMargin'))/100, 0.9);
+      var rivalCost = v0.price * (1 - rm);
+      // 對方成本裡同樣含材料、包材，報價含運則也含運 — 全部扣掉才是純加工＋間接
+      var myMaterial = plate + tube + parts + scrap + outsrc + packMat + (v0.inclFreight ? freight : 0);
+      var rivalProcess = rivalCost - myMaterial;
+      var myProcess = labor + oh + cons;
+      var gap = rivalProcess - myProcess;
+      var gapMins = rate > 0 ? gap / rate * 60 : 0;
+
+      rv.innerHTML =
+        '<div class="revcard"><span class="k">' + v0.name + ' 的完整成本（反推）</span><span class="v">' +
+          money(rivalCost) + '</span><span class="d">報價 ' + money(v0.price) + ' × (1 − ' +
+          hrs(rm*100) + '%)。材料與包材若與你相同，扣掉 ' + money(myMaterial) + ' 後，他的加工＋間接約 ' +
+          money(rivalProcess) + ' 元。</span></div>' +
+        '<div class="revcard"><span class="k">你的加工＋間接</span><span class="v">' + money(myProcess) +
+          '</span><span class="d">人工 ' + money(labor) + ' ＋ 間接費 ' + money(oh) + ' ＋ 耗材 ' +
+          money(cons) + '，共 ' + tm(totalM) + '。</span></div>' +
+        '<div class="revcard' + (Math.abs(gapMins) > 60 ? ' hot' : '') + '"><span class="k">差距換算成工時</span><span class="v">' +
+          (gap >= 0 ? '＋' : '−') + Math.round(Math.abs(gapMins)) + ' 分</span><span class="d">' +
+          (gap > 0
+            ? '對方的加工成本比你高 ' + money(gap) + ' 元 ≈ ' + tm(Math.abs(gapMins)) +
+              '。要嘛你效率真的比較高，要嘛<b>你低估了自己的工時</b>——以你沒有雷射、鑽孔攻牙靠手工、又做客製一台的條件，後者機率比較大。'
+            : '你的加工成本比對方高 ' + money(-gap) + ' 元 ≈ ' + tm(Math.abs(gapMins)) +
+              '。對方可能有雷射、CNC 折床或批量優勢，這幾道值得考慮外包。') +
+          '</span></div>';
+    } else {
+      rv.innerHTML = '<div class="revcard" style="grid-column:1/-1"><span class="d">填入外廠報價後，這裡會用你的成本模型反推對方的成本結構，並把差距換算成「你可能少算幾小時」。</span></div>';
+    }
+
+    /* ---- 檢查表旗標 ---- */
+    var flagState = {
+      draw:     num($('m_draw')) > 0,
+      purch:    num($('m_purch')) > 0,
+      scrap:    scrapRate > 0,
+      tubewhole: mode.tube === 'detail' ? tubeWhole : tube > 0,
+      shape:    useLaser ? shapeLaser > 0 : shapeH > 0,
+      bend:     num($('m_bendp')) > 0 || bendOut > 0,
+      bendqty:  num($('bendQty')) > 0 || tubeBend > 0,
+      jig:      num($('m_jig')) > 0,
+      tig:      num($('m_tig')) > 0,
+      grind:    num($('m_grind')) > 0,
+      polish:   num($('m_polish')) > 0,
+      drill:    num($('m_drill')) > 0,
+      asm:      num($('m_asm')) > 0,
+      clean:    num($('m_clean')) > 0,
+      cons:     cons > 0,
+      oh:       oh > 0,
+      packmat:  packMat > 0,
+      freight:  freight > 0,
+      misc:     misc > 0
+    };
+    var flags = $('checkList').querySelectorAll('.flag');
+    for (var f=0;f<flags.length;f++) flags[f].hidden = !!flagState[flags[f].getAttribute('data-flag')];
+
+    /* ---- 警示 ---- */
+    var alerts = [];
+    function push(t, soft){ alerts.push({t:t, s:!!soft}); }
+
+    if (plate === 0 && tube === 0) push('<strong>材料成本為 0</strong> — 板材與管材都沒填。');
+    if (num($('m_draw')) === 0) push('<strong>拆圖工時為 0</strong> — 客製件每台都要拆圖算展開，這是最常被整包漏掉的一項。');
+    if (!useLaser && shapeH === 0) push('<strong>切樣式工時為 0</strong> — 你沒有雷射，異形、開口、切角都要靠切角機、沖床或手工，還要修毛邊。');
+    if (num($('m_tig')) === 0) push('<strong>氬焊工時為 0</strong> — 7 台氬焊機的主戰場，不可能是零。');
+    if (num($('m_grind')) === 0) push('<strong>焊道研磨工時為 0</strong> — 12 支砂輪機就是為這道準備的。');
+    if (num($('m_polish')) === 0) push('拋光／拉紋為 0，確認這件是不是真的不用外觀處理。', true);
+    if (num($('m_drill')) === 0) push('鑽孔／攻牙為 0 — 你沒有 CNC，手工鑽孔攻牙含劃線定位，一台車幾十上百個孔。', true);
+    if (num($('m_grind')) > 0 && num($('m_tig')) > 0){
+      var ratio = (num($('m_grind')) + num($('m_polish'))) / num($('m_tig'));
+      if (ratio < 1.2) push('研磨＋拋光只有氬焊的 ' + Math.round(ratio*100) +
+        '%。以你的設備配置（12 支砂輪對 7 台焊機），外觀件通常是氬焊的 <strong>1.5～2 倍</strong>，確認一下。', true);
+    }
+    if (cons === 0) push('<strong>耗材為 0</strong> — 氬氣、砂輪片、百葉片。', true);
+    if (oh === 0) push('<strong>製造間接費為 0</strong> — 租金、水電、機台折舊、生管品管薪資都還沒攤。');
+    if (scrapRate === 0) push('材料損耗率為 0 — 切樣式一定有邊料，折壞也要算。', true);
+    if (packMat === 0) push('包裝材料為 0。', true);
+    if (freight === 0) push('運費為 0 — 出貨是委外貨運，這筆有單據可查。', true);
+    if (misc === 0) push('其他風險為 0 — 客製件的修改、重工、報廢沒有留餘裕。', true);
+    if (overLen || overThk) push('<strong>折板超出廠內能力</strong>，記得把外包折床的費用與來回運費填進去。');
+    if (qty > 1 && learn >= 1) push('本單 ' + qty + ' 台但熟練係數 100%，等於假設第十台跟第一台一樣慢。通常可以抓 70～80%。', true);
+    if (mT < 15 && total > 0) push('<strong>目標毛利率低於 15%</strong> — 已接近最低成交價。');
+    if (labor > 0 && oh > 0 && oh < labor * 0.15)
+      push('製造間接費只有直接人工的 ' + Math.round(oh/labor*100) + '%，多數金屬加工廠落在 25～50%。', true);
+
+    var box = $('alerts');
+    box.innerHTML = '';
+    if (!alerts.length){
+      box.innerHTML = '<div class="ok-state">主要成本項目都填了，這張估價沒有明顯缺口。</div>';
+    } else {
+      alerts.forEach(function(a){
+        var dv = document.createElement('div');
+        dv.className = 'alert' + (a.s ? ' soft' : '');
+        dv.innerHTML = '<span class="dot"></span><span>' + a.t + '</span>';
+        box.appendChild(dv);
+      });
+    }
+
+    /* ============ 快速估價（獨立試算）============ */
+    (function(){
+      var qm   = num($('qkMins'));
+      var qh   = qm / 60;
+      var qMatIn = num($('qkMat'));
+      var qScrap = qMatIn * scrapRate / 100;
+      var qMat   = qMatIn + qScrap;
+      var qLabor = qh * rate;
+      var qOh;
+      if (ohMode === 'fixed')     qOh = num($('ohFixed'));
+      else if (ohMode === 'pct')  qOh = qLabor * num($('ohPct')) / 100;
+      else                        qOh = qh * num($('ohHour'));
+      var qOther = num($('qkOther'));
+      var qTotal = qMat + qLabor + qOh + qOther;
+      var qMargin = num($('qkMargin'));
+      function qPrice(mp){ var m2 = Math.min(mp/100, 0.95); return qTotal / (1 - m2); }
+      var qP = qPrice(qMargin);
+
+      $('qkMinsHint').textContent = qm ? tm(qm) : '填分鐘，例：一天 8 小時 = 480 分';
+      $('qkMatOut').textContent   = money(qMat);
+      $('qkMatSub').textContent   = scrapRate > 0
+        ? '含損耗 ' + hrs(scrapRate) + '%（＋' + money(qScrap) + '）' : '未計損耗';
+      $('qkLabor').textContent    = money(qLabor);
+      $('qkLaborSub').textContent = tm(qm) + ' × ' + money(rate) + '/hr';
+      $('qkOh').textContent       = money(qOh);
+      $('qkOhSub').textContent    = ohMode === 'fixed' ? '固定額'
+                                  : (ohMode === 'pct' ? '人工 ' + hrs(num($('ohPct'))) + '%'
+                                                      : money(num($('ohHour'))) + '/hr');
+      $('qkOtherOut').textContent = money(qOther);
+      $('qkTotal').textContent    = money(qTotal);
+      $('qkPrice').textContent    = qTotal > 0 ? money(qP) : '—';
+      $('qkPriceSub').textContent = '毛利 ' + hrs(qMargin) + '%';
+      $('qkProfit').textContent   = qTotal > 0 ? money(qP - qTotal) : '—';
+
+      QK_TIERS.forEach(function(t){
+        t.el.querySelector('.v').textContent = qTotal > 0 ? money(qPrice(t.m)) : '—';
+        t.el.classList.toggle('mark', Math.abs(t.m - qMargin) < 0.001);
+      });
+
+      var cmp = $('qkCmp');
+      if (qTotal > 0 && total > 0){
+        var diff = qTotal - total, pct = diff / total * 100;
+        var off = Math.abs(pct) > 15;
+        cmp.className = 'qk-cmp' + (off ? ' off' : '');
+        cmp.innerHTML = '<span>對照下面的詳細估價 <b>' + money(total) + '</b>：快速估價 <b>' +
+          money(qTotal) + '</b>，' +
+          (Math.abs(diff) < 1 ? '<b>完全一致</b>。'
+            : (diff > 0 ? '高 <b>' : '低 <b>') + money(Math.abs(diff)) + '</b>（' +
+              (diff > 0 ? '+' : '−') + Math.abs(pct).toFixed(1) + '%）。') +
+          (off ? '　差距超過 15%，兩邊有一邊的假設不對，值得回頭看。'
+               : '　兩邊對得起來，這個快速數字可以直接報。') + '</span>';
+      } else {
+        cmp.className = 'qk-cmp';
+        cmp.innerHTML = '<span>填上面四格就有答案。時薪與間接費率沿用全域設定，損耗率沿用下面詳細估價的設定。</span>';
+      }
+    })();
+
+    /* --- 快速估價條 --- */
+    var qMat = VC;                    // 料：材料＋損耗＋外購＋委外＋耗材＋包材＋運費＋風險
+    $('qMat').textContent   = money(qMat);
+    $('qLabor').textContent = money(labor);
+    $('qLaborSub').textContent = tm(totalM) + ' × ' + money(rate) + '/hr';
+    $('qOh').textContent    = money(oh);
+    $('qCost').textContent  = money(total);
+    $('qCostSub').textContent = qty > 1 ? '每台（本單 ' + qty + ' 台）' : '每台';
+    $('qPrice').textContent = total > 0 ? money(pT) : '—';
+    $('qPriceSub').textContent = '毛利 ' + hrs(mT) + '%' + (upl > 0 ? ' ＋加價 ' + hrs(upl*100) + '%' : '');
+    var profit = total > 0 ? pT/(1+upl) - total : 0;
+    $('qProfit').textContent = total > 0 ? money(profit) : '—';
+    $('qProfitSub').textContent = total > 0
+      ? '佔售價 ' + (pT > 0 ? (profit/pT*100).toFixed(1) : '0') + '%'
+      : '—';
+
+    window.__snap = {vals:vals, total:total, totalM:totalM, groupM:groupM, qty:qty, rate:rate,
+                     VC:VC, CC:CC, FC:FC, vendors:vendors, mT:mT, upl:upl, priceAt:priceAt};
+
+    /* ============ 列印用估價單 ============ */
+    (function(){
+      function esc(s){
+        return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+          return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];
+        });
+      }
+      function jv(id){ var e = $(id); return e && e.value.trim() ? esc(e.value.trim()) : '—'; }
+
+      var rows = SEGMENTS.map(function(s){
+        var v = vals[s.k], pct = total > 0 ? v/total*100 : 0;
+        return '<tr' + (v === 0 ? ' class="zero"' : '') + '><td>' + s.n +
+               '</td><td class="p">' + (v > 0 ? pct.toFixed(1) + '%' : '') +
+               '</td><td class="n">' + money(v) + '</td></tr>';
+      }).join('');
+
+      var procRows = HGROUPS.map(function(g){
+        var detail = g.list.map(function(p){
+          var mm = p.dyn ? (useLaser ? 0 : shapeM) : num($('m_' + p.k));
+          return mm > 0 ? p.n.replace(/（.*/,'') + ' ' + Math.round(mm) : null;
+        }).filter(Boolean).join('、');
+        return '<tr><td>' + g.n + '<br><span style="font-size:8pt;color:#888">' +
+               (detail || '—') + '</span></td><td class="n">' +
+               Math.round(groupM[g.k]) + ' 分</td></tr>';
+      }).join('');
+
+      var tierRows = TIERS.map(function(t){
+        var p = priceAt(t.m);
+        return '<tr' + (Math.abs(t.m - mT) < 0.001 ? ' class="mark"' : '') + '><td>毛利 ' + t.m + '%' +
+               (t.tag ? '　' + t.tag : '') + '</td><td class="n">' + money(p) +
+               '</td><td class="n" style="color:#666">' + money(p/(1+upl) - total) + '</td></tr>';
+      }).join('');
+
+      var vendRows = vendors.length
+        ? vendors.map(function(v){
+            var kf2 = capMode === 'idle' ? 0 : (capMode === 'ot' ? 0.6 : 1.0);
+            var thr2 = capMode === 'idle' ? VC : (capMode === 'ot' ? CC : FC);
+            if (!v.inclDraw && engCost > 0){
+              thr2 -= (capMode === 'full') ? engCost : engCost * kf2;
+            }
+            var P2 = v.price + ((!v.inclFreight && freight > 0) ? freight : 0);
+            var g2 = P2 - thr2;
+            return '<tr><td>' + esc(v.name) + '</td><td class="n">' + money(v.price) +
+                   '</td><td class="n">' + (g2 >= 0 ? '自製有利 ＋' : '外購有利 ') +
+                   money(Math.abs(g2)) + '</td></tr>';
+          }).join('')
+        : '<tr><td colspan="3" style="color:#999">未輸入外廠報價</td></tr>';
+
+      var capName = capMode === 'idle' ? '產能有空（增量人工 0%）'
+                  : (capMode === 'ot' ? '要加班（增量人工 60%）' : '產能滿載（增量人工 100%）');
+      var ohName = ohMode === 'fixed' ? '固定 ' + money(num($('ohFixed'))) + ' 元'
+                 : (ohMode === 'pct' ? '直接人工 × ' + hrs(num($('ohPct'))) + '%'
+                                     : money(num($('ohHour'))) + ' 元/hr');
+
+      $('printDoc').innerHTML =
+        '<div class="pd-head">' +
+          '<div><h1 class="pd-title">不鏽鋼製品估價單</h1>' +
+          '<div class="pd-sub">Cost Estimate &amp; Quotation · 一廠</div></div>' +
+          '<div class="pd-meta">估價日期　' + jv('jobDate') + '<br>本單台數　' + qty + ' 台</div>' +
+        '</div>' +
+
+        '<div class="pd-job">' +
+          '<div><b>案名／品名</b><span>' + jv('jobName') + '</span></div>' +
+          '<div><b>客戶</b><span>' + jv('jobCustomer') + '</span></div>' +
+          '<div><b>圖號</b><span>' + jv('jobDrawing') + '</span></div>' +
+          '<div><b>估價人</b><span>' + jv('jobBy') + '</span></div>' +
+          '<div style="grid-column:span 2"><b>備註</b><span>' + jv('jobNote') + '</span></div>' +
+        '</div>' +
+
+        '<div class="pd-2col">' +
+          '<div>' +
+            '<div class="pd-h">成本組成／台<small>單位：元</small></div>' +
+            '<table class="pd">' + rows +
+              '<tr class="sum"><td>完整成本</td><td class="p"></td><td class="n">' + money(total) + '</td></tr>' +
+            '</table>' +
+          '</div>' +
+          '<div>' +
+            '<div class="pd-h">工時／台<small>合計 ' + tm(totalM) + '</small></div>' +
+            '<table class="pd">' + procRows +
+              '<tr class="sum"><td>總工時</td><td class="n">' + Math.round(totalM) + ' 分</td></tr>' +
+            '</table>' +
+            '<div class="pd-h">報價階梯<small>售價 ＝ 成本 ÷（1 − 毛利率）</small></div>' +
+            '<table class="pd"><tr style="color:#666;font-size:8.5pt"><td>毛利率</td><td class="n">售價</td><td class="n">毛利額</td></tr>' +
+              tierRows +
+              '<tr class="sum"><td>建議售價（毛利 ' + hrs(mT) + '%' +
+              (upl > 0 ? ' ＋加價 ' + hrs(upl*100) + '%' : '') + '）</td><td class="n" colspan="2">' +
+              money(priceAt(mT)) + '</td></tr>' +
+            '</table>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="pd-h">自製 vs 外購<small>' + capName + '</small></div>' +
+        '<div class="pd-2col">' +
+          '<table class="pd">' +
+            '<tr><td>變動成本 VC</td><td class="n">' + money(VC) + '</td></tr>' +
+            '<tr><td>現金成本 CC</td><td class="n">' + money(CC) + '</td></tr>' +
+            '<tr><td>完整成本 FC</td><td class="n">' + money(FC) + '</td></tr>' +
+          '</table>' +
+          '<table class="pd"><tr style="color:#666;font-size:8.5pt"><td>外廠</td><td class="n">報價</td><td class="n">差額／台</td></tr>' +
+            vendRows + '</table>' +
+        '</div>' +
+
+        '<div class="pd-h">計算參數快照<small>半年後回頭看這張單，要知道當時用什麼算的</small></div>' +
+        '<div class="pd-2col pd-kv">' +
+          '<div>' +
+            '工廠加工時薪　<b>' + money(rate) + '</b> 元/hr（每分鐘 ' + nf2.format(rate/60) + ' 元）<br>' +
+            '製造間接費　<b>' + ohName + '</b>　→ 本單 ' + money(oh) + ' 元<br>' +
+            '材料損耗率　<b>' + hrs(scrapRate) + '%</b>　→ ' + money(scrap) + ' 元<br>' +
+            '熟練係數　<b>' + Math.round(learn*100) + '%</b>（平均 ' + nf2.format(mfgFactor) + '）' +
+          '</div>' +
+          '<div>' +
+            '板材　<b>' + hrs(num($('plateWeight'))) + ' kg × ' + money(num($('platePrice'))) + ' 元/kg</b><br>' +
+            '切樣式　<b>' + (useLaser ? '外包雷射 ' + money(shapeLaser) + ' 元' : '廠內自切 ' + Math.round(shapeM) + ' 分') + '</b><br>' +
+            '折板　<b>' + nf0.format(bl) + ' mm × ' + bt + ' mm</b>' + ((overLen || overThk) ? '　⚠ 超出折床能力，需外包' : '（廠內可折）') + '<br>' +
+            '耗材　氬氣 <b>' + money(num($('argonRate'))) + '</b> 元/氬焊hr　研磨 <b>' + money(num($('grindRate'))) + '</b> 元/研磨hr' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="pd-tail">' +
+        '<div class="pd-h">現場備註</div>' +
+        '<div class="pd-note"></div>' +
+        '<div class="pd-sign"><div>估價</div><div>審核</div><div>核准</div></div>' +
+        '<div class="pd-foot">' +
+          '本單由「不鏽鋼估價台」' + APP_VERSION + ' 產出，成本模型依一廠設備與製程建立（折床 2,000 mm × 2.5 mm、無雷射、無 CNC 車銑、彎管外包）。' +
+          '工時與費率若尚未以派工實績校準，本單金額僅供內部估算參考，不等同對外正式報價。' +
+        '</div>';
+    })();
+  }
+
+  /* ---------- 事件 ---------- */
+  document.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.seg button') : null;
+    if (!b) return;
+    var m = b.getAttribute('data-mode'), v = b.getAttribute('data-val');
+    mode[m] = v;
+    var g = b.parentNode.querySelectorAll('button');
+    for (var i=0;i<g.length;i++) g[i].setAttribute('aria-pressed', g[i] === b ? 'true' : 'false');
+    if (m === 'plate') $('plateDim').hidden = (v !== 'dim');
+    if (m === 'tube'){ $('tubeTotalBox').hidden = (v !== 'total'); $('tubeDetail').hidden = (v !== 'detail'); }
+    calc();
+  });
+
+  $('ohMode').addEventListener('change', function(){
+    var v = this.value;
+    $('ohFixedField').hidden = (v !== 'fixed');
+    $('ohPctField').hidden = (v !== 'pct');
+    $('ohHourField').hidden = (v !== 'hour');
+    calc();
+  });
+
+  $('addPlate').addEventListener('click', function(){ addPlateRow(); calc(); });
+  $('addTube').addEventListener('click', function(){ addTubeRow(); calc(); });
+  $('addVendor').addEventListener('click', function(){ addVendorRow({freight:true, draw:false}); calc(); });
+  /* ---------- PDF 檔名：以品名為主 ---------- */
+  var baseTitle = document.title;
+
+  function todayStr(){
+    var d = new Date(), p = function(n){ return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '/' + p(d.getMonth()+1) + '/' + p(d.getDate());
+  }
+
+  /* 瀏覽器「另存為 PDF」的預設檔名 = document.title，所以列印前換掉、印完換回來 */
+  function quoteFileName(){
+    var name = ($('jobName').value || '').trim();
+    var cust = ($('jobCustomer').value || '').trim();
+    var date = ($('jobDate').value || '').replace(/\D+/g, '');
+    var parts = [name || '不鏽鋼估價單'];
+    if (cust) parts.push(cust);
+    if (date) parts.push(date);
+    return parts.join('_')
+      .replace(/[\\\/:*?"<>|\r\n\t]+/g, '')   // 檔名不能有的字元
+      .replace(/\s+/g, '')
+      .slice(0, 80);
+  }
+
+  window.addEventListener('beforeprint', function(){ document.title = quoteFileName(); });
+  window.addEventListener('afterprint',  function(){ document.title = baseTitle; });
+
+  $('btnPrint').addEventListener('click', function(){
+    calc();
+    try {
+      window.print();
+    } catch(e){
+      toast('這個環境擋掉了列印，請改用瀏覽器選單的「列印」');
+    }
+  });
+
+  document.addEventListener('input', calc);
+  document.addEventListener('change', calc);
+
+  function toast(msg){
+    var t = $('toast'); t.textContent = msg; t.classList.add('on');
+    clearTimeout(toast._t); toast._t = setTimeout(function(){ t.classList.remove('on'); }, 2400);
+  }
+
+  /* ---------- 複製 ---------- */
+  $('btnCopy').addEventListener('click', function(){
+    var s = window.__snap; if (!s) return;
+    var L = [];
+    L.push('不鏽鋼製品成本與報價明細');
+    L.push('產出日期：' + new Date().toLocaleDateString('zh-TW') + '　本單 ' + s.qty + ' 台');
+    L.push('');
+    L.push('［成本組成／台］');
+    SEGMENTS.forEach(function(g){ L.push('  ' + g.n + '　' + money(s.vals[g.k]) + ' 元'); });
+    L.push('  ────────────────');
+    L.push('  完整成本　' + money(s.total) + ' 元');
+    L.push('');
+    L.push('［工時／台］　合計 ' + tm(s.totalM) + '　·　時薪 ' + money(s.rate) + ' 元/hr');
+    HGROUPS.forEach(function(g){ L.push('  ' + g.n + '　' + Math.round(s.groupM[g.k]) + ' 分'); });
+    L.push('');
+    L.push('［報價階梯］' + (s.upl > 0 ? '（含客製加價 ' + hrs(s.upl*100) + '%）' : ''));
+    TIERS.forEach(function(t){
+      L.push('  毛利 ' + t.m + '%' + (t.tag ? '（' + t.tag + '）' : '') + '　' + money(s.priceAt(t.m)) + ' 元');
+    });
+    L.push('  目標毛利 ' + hrs(s.mT) + '% → 建議售價 ' + money(s.priceAt(s.mT)) + ' 元');
+    L.push('');
+    L.push('［自製 vs 外購］');
+    L.push('  變動成本 VC　' + money(s.VC) + ' 元');
+    L.push('  現金成本 CC　' + money(s.CC) + ' 元');
+    L.push('  完整成本 FC　' + money(s.FC) + ' 元');
+    s.vendors.forEach(function(v){ L.push('  ' + v.name + ' 報價　' + money(v.price) + ' 元'); });
+
+    var txt = L.join('\n');
+    var done = function(){ toast('估價明細已複製'); };
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(done, function(){ fallback(txt, done); });
+    } else fallback(txt, done);
+  });
+
+  function fallback(txt, done){
+    var ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); done(); } catch(e){ toast('複製失敗，請手動選取'); }
+    document.body.removeChild(ta);
+  }
+
+  /* ---------- 重設 ---------- */
+  var DEFAULTS = {
+    batchQty:1, learnRate:75, plateWeight:13, platePrice:130, shapeLaser:0,
+    bendLen:900, bendThk:1.2, bendOut:0, tubeTotal:520,
+    bendQty:0, bendPrice:35, bendSetup:0,
+    machParts:0, buyParts:400, otherOut:0,
+    packMat:150, freight:300, argonRate:100, grindRate:80, consOther:100,
+    scrapRate:5, misc:0, ohHour:120, ohFixed:500, ohPct:30,
+    margin:25, uplift:0, rivalMargin:25, rate:450,
+    qkMat:2610, qkMins:635, qkOther:920, qkMargin:25
+  };
+  function resetAll(){
+    for (var k in DEFAULTS){ var el = $(k); if (el) el.value = DEFAULTS[k]; }
+    ['jobName','jobCustomer','jobDrawing','jobNote'].forEach(function(id){ $(id).value = ''; });
+    $('jobDate').value = todayStr();
+    ALL_P.forEach(function(p){
+      var el = $('m_' + p.k);
+      if (el) el.value = p.m;
+    });
+    $('m_shape').value = 45;
+    $('ohMode').value = 'hour';
+    $('ohHourField').hidden = false; $('ohFixedField').hidden = true; $('ohPctField').hidden = true;
+    $('capMode').value = 'idle';
+    $('tubeWhole').checked = true;
+    $('plateRows').innerHTML = ''; $('tubeRows').innerHTML = ''; $('vendorRows').innerHTML = '';
+    plateSeq = 0; tubeSeq = 0; vendorSeq = 0;
+    addPlateRow({name:'車體側板', l:600, w:400, t:1.2, q:2});
+    addTubeRow({name:'□25×25×1.2', price:520, len:6000, use:4200});
+    addVendorRow({name:'A 廠', price:7500, freight:true, draw:false});
+    var b = document.querySelectorAll('#checkList input[type=checkbox], #softChecks input[type=checkbox]');
+    for (var i=0;i<b.length;i++) b[i].checked = false;
+    $('chkProgress').textContent = '0 / ' + CHECKS.length;
+    calc();
+  }
+  $('btnReset').addEventListener('click', function(){ resetAll(); toast('已回到預設值'); });
+
+  /* ---------- 版本說明視窗 ---------- */
+  $('verBadge').textContent = APP_VERSION + ' ▾';
+  $('clBody').innerHTML = VERSIONS.map(function(r, i){
+    return '<div class="cl-ver' + (i === 0 ? ' now' : '') + '">' +
+      '<h3><span class="tag">' + r.v + '</span>' + r.t +
+      '<span class="d">' + r.d + '</span></h3>' +
+      '<ul>' + r.items.map(function(x){ return '<li>' + x + '</li>'; }).join('') + '</ul></div>';
+  }).join('');
+  $('verBadge').addEventListener('click', function(){
+    var dg = $('clDialog');
+    if (dg.showModal) dg.showModal(); else dg.setAttribute('open', '');
+  });
+  $('clClose').addEventListener('click', function(){
+    var dg = $('clDialog');
+    if (dg.close) dg.close(); else dg.removeAttribute('open');
+  });
+  $('clDialog').addEventListener('click', function(e){
+    if (e.target === this) this.close();   // 點背景關閉
+  });
+
+  /* 價目快照來源說明 */
+  $('tubeSrc').innerHTML = TUBE_CATALOG.length
+    ? '價目　<b>' + TUBE_VENDOR + '</b>　·　<b>' + TUBE_CATALOG.length + '</b> 個規格　·　' +
+      '整理日 <b>' + TUBE_ASOF + '</b>　·　同規格多等級取平均　·　' +
+      '價格變動直接改 index.html 裡的 <b>TUBE_CATALOG</b>'
+    : '目前沒有價目，管材價格請手動輸入。';
+
+  resetAll();
+})();
+</script>
+
+</body>
+</html>
