@@ -84,6 +84,13 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 .verify-summary{background:#fffbe6;border-left:4px solid #faad14;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.82rem;color:#874d00}
 .verify-summary b{color:#613400}
 .verify-ok{background:#f6ffed;border-left-color:#52c41a;color:#237804}
+.verify-toggle{display:flex;align-items:center;flex-wrap:wrap;gap:8px;background:#f8f9fa;border:1px solid #e6e8ec;border-radius:10px;padding:10px 14px;margin-top:16px;cursor:pointer;transition:all .2s}
+.verify-toggle:hover{border-color:#667eea;background:#f4f6fb}
+.verify-toggle input{width:16px;height:16px;cursor:pointer;accent-color:#667eea}
+.vt-text{font-size:.88rem;font-weight:600;color:#444}
+.vt-hint{font-size:.75rem;color:#999;flex-basis:100%;padding-left:24px}
+.verify-toggle.on{border-color:#faad14;background:#fffbe6}
+.verify-toggle.on .vt-text{color:#d48806}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none !important}
@@ -124,6 +131,11 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
     <input type="file" id="fileInput" multiple accept="image/*,.pdf">
 
     <div class="file-list" id="fileList"></div>
+    <label class="verify-toggle" id="verifyToggleWrap">
+      <input type="checkbox" id="verifyToggle">
+      <span class="vt-text">🔍 雙模型交叉驗證</span>
+      <span class="vt-hint">再用一個較便宜的模型跑一次，標出兩邊不一致的欄位（辨識費用約多兩成）</span>
+    </label>
     <button class="btn" id="previewBtn" disabled>📋 預覽辨識結果</button>
     <button class="btn btn-outline hidden" id="submitBtn">✅ 確認寫入 Google Sheet + Ragic</button>
 
@@ -209,6 +221,11 @@ const DISPLAY_FIELDS = [
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.1.1', title: '交叉驗證改成開關', items: [
+    '雙模型驗證預設關閉，平常只用主模型辨識，維持原本費用',
+    '需要時勾選「🔍 雙模型交叉驗證」再按預覽即可',
+    '勾選狀態會記住，下次開啟頁面沿用',
+  ]},
   { v: '3.1.0', title: '雙模型交叉驗證', items: [
     '同一份檔案由兩個 AI 模型各辨識一次，逐欄位比對',
     '兩邊答案不同的欄位用黃框標出，其餘可放心略過',
@@ -312,8 +329,21 @@ async function doLogin() {
   if (r.ok) { $('loginSection').classList.add('hidden'); showMain(); }
   else { $('loginError').textContent='密碼錯誤'; $('loginError').style.display='block'; }
 }
+function initVerifyToggle() {
+  const cb = $('verifyToggle'), wrap = $('verifyToggleWrap');
+  if (!cb || !wrap) return;
+  // 記住上次的選擇 (存在瀏覽器本機，換裝置會重設)
+  try { cb.checked = localStorage.getItem('ocr_verify') === '1'; } catch(e) {}
+  wrap.classList.toggle('on', cb.checked);
+  cb.addEventListener('change', () => {
+    wrap.classList.toggle('on', cb.checked);
+    try { localStorage.setItem('ocr_verify', cb.checked ? '1' : '0'); } catch(e) {}
+  });
+}
+
 function showMain() {
   $('mainSection').classList.remove('hidden');
+  initVerifyToggle();
   loadCustomers();
   loadProducts();
   loadOrderHistory();
@@ -889,7 +919,8 @@ $('previewBtn').addEventListener('click', async () => {
   selectedFiles.forEach(f=>fd.append('files',f));
 
   try {
-    const r = await fetch('/preview',{method:'POST',body:fd});
+    const verifyOn = $('verifyToggle')?.checked ? 1 : 0;
+    const r = await fetch(`/preview?verify=${verifyOn}`,{method:'POST',body:fd});
     if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const d = await r.json();
     displayResults(d.results, true);
