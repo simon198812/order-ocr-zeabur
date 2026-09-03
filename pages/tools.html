@@ -229,12 +229,15 @@ function syncNav(id){
   });
 }
 
-// 進站時依 hash 開對應分頁
-(function initTab(){
+// 依網址 hash 開對應分頁
+function applyHash(){
   const h = location.hash.slice(1);
   if (TAB_ORDER.includes(h)) go(h);
-  else syncNav('sus304');
-})();
+  else syncNav(document.querySelector('.page.active')?.id.replace('page-','') || 'sus304');
+}
+// 同頁只改 hash 不會重載，要監聽才會切分頁
+window.addEventListener('hashchange', applyHash);
+applyHash();
 
 // ===== SUS304 =====
 const D=7.93; let rid=0;
