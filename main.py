@@ -39,7 +39,7 @@ load_dotenv()
 
 # ------------------- 版本 -------------------
 # 改動功能時手動遞增；啟動時間可用來確認部署是否已生效
-APP_VERSION = "3.1.1"
+APP_VERSION = "3.2.0"
 STARTED_AT = datetime.now().strftime("%Y/%m/%d %H:%M")
 
 # Gemini token 用量累計 (自本次啟動起)，供成本追蹤
