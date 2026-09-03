@@ -73,9 +73,10 @@ tbody tr:hover{background:var(--bg-deep)}
 <body>
 <nav class="sf-nav">
   <span class="sf-brand">尚鋒工具</span>
-  <a href="/">📄 OCR 訂單</a>
-  <a href="/tools" class="on">🛠️ 工作工具箱</a>
-  <a href="/quote">📐 估價台</a>
+  <a href="/">OCR</a>
+  <a href="/tools#sus304" data-tab="sus304" onclick="go('sus304');return false">板材計算</a>
+  <a href="/tools#calc" data-tab="calc" onclick="go('calc');return false">利潤計算機</a>
+  <a href="/quote">估價台</a>
 </nav>
 
 <div class="header">
@@ -86,9 +87,8 @@ tbody tr:hover{background:var(--bg-deep)}
 <div class="tabs">
   <div class="tab active" onclick="go('sus304',0)">⚙️ SUS304 計算</div>
   <div class="tab" onclick="go('img',1)">🖼️ 圖片排版列印</div>
-  <div class="tab" onclick="go('ocr',2)">📄 OCR 訂單辨識</div>
-  <div class="tab" onclick="go('calc',3)">🧮 利潤計算機</div>
-  <div class="tab" onclick="go('ext',4)">➕ 擴充工具</div>
+  <div class="tab" onclick="go('calc',2)">🧮 利潤計算機</div>
+  <div class="tab" onclick="go('ext',3)">➕ 擴充工具</div>
 </div>
 
 <!-- ===== SUS304 ===== -->
@@ -153,25 +153,6 @@ tbody tr:hover{background:var(--bg-deep)}
   <div id="printMount"><div id="printArea"></div></div>
 </div>
 
-<!-- ===== OCR ===== -->
-<div id="page-ocr" class="page">
-  <div class="card">
-    <div class="card-title">📄 OCR 訂單辨識</div>
-    <div class="note">醫院訂購單自動辨識 → Google Sheet + Ragic 訂單總單</div>
-    <div style="text-align:center;padding:32px 20px">
-      <div style="font-size:46px;margin-bottom:12px">📄</div>
-      <div style="font-size:15px;font-weight:700;color:var(--fg);margin-bottom:6px">OCR 訂單處理系統</div>
-      <div style="font-size:12px;color:var(--fg-soft);margin-bottom:20px;line-height:1.7">
-        上傳 PDF 訂購單，自動辨識 23 個欄位<br>
-        智慧比對客戶與商品，一鍵寫入 Google Sheet 與 Ragic
-      </div>
-      <a href="/" class="btn btn-blue" style="display:inline-block;text-decoration:none;padding:10px 24px">
-        前往 OCR 訂單系統 →
-      </a>
-    </div>
-  </div>
-</div>
-
 <!-- ===== 利潤計算機 ===== -->
 <div id="page-calc" class="page">
   <div class="card">
@@ -228,12 +209,32 @@ tbody tr:hover{background:var(--bg-deep)}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 // ===== NAV =====
-function go(id,idx){
+const TAB_ORDER = ['sus304','img','calc','ext'];
+
+function go(id, idx){
+  if (idx === undefined) idx = TAB_ORDER.indexOf(id);
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  document.querySelectorAll('.tab')[idx].classList.add('active');
+  document.getElementById('page-'+id)?.classList.add('active');
+  document.querySelectorAll('.tab')[idx]?.classList.add('active');
+  // 同步網址，方便從導覽列直接連到特定分頁
+  if (location.hash.slice(1) !== id) history.replaceState(null, '', '#' + id);
+  syncNav(id);
 }
+
+// 導覽列的「板材計算 / 利潤計算機」要跟著目前分頁高亮
+function syncNav(id){
+  document.querySelectorAll('.sf-nav a[data-tab]').forEach(a=>{
+    a.classList.toggle('on', a.dataset.tab === id);
+  });
+}
+
+// 進站時依 hash 開對應分頁
+(function initTab(){
+  const h = location.hash.slice(1);
+  if (TAB_ORDER.includes(h)) go(h);
+  else syncNav('sus304');
+})();
 
 // ===== SUS304 =====
 const D=7.93; let rid=0;
