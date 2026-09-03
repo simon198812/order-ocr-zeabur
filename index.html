@@ -35,8 +35,10 @@ h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;fo
 .login-box input{width:100%;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-size:1rem;margin-bottom:12px;outline:none;transition:border .3s}
 .login-box input:focus{border-color:var(--primary)}
 .login-error{color:var(--danger);font-size:.85rem;margin-bottom:10px;display:none}
-.upload-area{border:2px dashed var(--primary);border-radius:15px;padding:45px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--muted);margin-bottom:16px}
-.upload-area:hover,.upload-area.dragover{border-color:var(--primary-dark);background:var(--accent);transform:translateY(-2px)}
+.upload-area{position:relative;border:1px solid var(--line);border-radius:var(--radius-lg);padding:44px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--card);margin-bottom:16px;box-shadow:var(--shadow)}
+.upload-area::after{content:'';position:absolute;inset:8px;border:2px dashed var(--brand-soft);border-radius:6px;pointer-events:none;transition:border-color .2s}
+.upload-area:hover,.upload-area.dragover{border-color:var(--brand);background:var(--bg-soft)}
+.upload-area:hover::after,.upload-area.dragover::after{border-color:var(--brand)}
 .upload-icon{font-size:3rem;margin-bottom:10px}
 .badges{display:flex;justify-content:center;gap:6px;margin-top:10px;flex-wrap:wrap}
 .badge{padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:600}
@@ -106,6 +108,7 @@ h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;fo
   <a href="/" class="on">OCR</a>
   <a href="/tools#sus304">板材計算</a>
   <a href="/tools#calc">利潤計算機</a>
+  <a href="/tools#img">圖片排版</a>
   <a href="/quote">估價台</a>
 </nav>
 <div class="container">
@@ -246,6 +249,11 @@ function displayFieldsFor(order) {
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.4.0', title: '導覽簡化與上傳區線框', items: [
+    '拿掉「工作多功能工具箱」標題列與第二層分頁',
+    '板材計算、利潤計算機、圖片排版直接放在上方導覽列',
+    'OCR 上傳區加上白底卡片與線框，範圍更清楚',
+  ]},
   { v: '3.3.3', title: 'OCR 頁版面對齊其他分頁', items: [
     'OCR 頁的內容不再多包一層卡片，左右邊界與其他分頁一致',
   ]},
