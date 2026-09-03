@@ -4,93 +4,124 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>OCR 訂單處理系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@600;700&display=swap" rel="stylesheet">
 <style>
+/* 尚鋒配色主題 — 依 sfinc-website-next/BRAND.md */
+:root{
+  /* 品牌綠 */
+  --brand:#2D6B3D;         /* 主色：按鈕、連結、強調 */
+  --brand-dark:#1F4F2D;    /* hover、重點 */
+  --brand-light:#4A9A4F;   /* 亮部 */
+  --brand-soft:#9CCFA3;    /* 卡片 hover 邊框、placeholder */
+  /* 質感金：細線、型號、裝飾 */
+  --gold:#B8956A;
+  --gold-soft:#D4BB95;
+  /* 背景 */
+  --bg:#FAFBF9;            /* 全站背景 */
+  --bg-soft:#EEF4EE;       /* 卡片底、規格框 */
+  --bg-deep:#F4F6F2;       /* 深底 */
+  --card:#fff;
+  /* 文字 */
+  --fg:#1A2E22;            /* 主文字 */
+  --fg-soft:#4A5953;       /* 內文、描述 */
+  --fg-muted:#7A857F;      /* 次要資訊、標籤 */
+  --line:#DDE5DD;          /* 邊框、分隔線 */
+  --danger:#B3261E;
+  --radius:.25rem;
+  /* 相容舊變數名 */
+  --primary:var(--brand); --primary-dark:var(--brand-dark);
+  --primary-light:var(--brand-light); --accent:var(--bg-soft);
+  --muted:var(--bg-deep); --muted-fg:var(--fg-soft);
+  --border:var(--line); --warn:var(--gold); --warn-bg:#FAF6EF;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Segoe UI','Microsoft JhengHei',sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;display:flex;justify-content:center;align-items:center;padding:20px}
-.container{background:rgba(255,255,255,.96);backdrop-filter:blur(10px);border-radius:20px;box-shadow:0 20px 60px rgba(0,0,0,.3);padding:40px;max-width:850px;width:100%}
-h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,#764ba2);background-clip:text;-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
-.subtitle{text-align:center;color:#666;margin-bottom:8px;font-size:.92rem}
-.sort-info{text-align:center;color:#888;font-size:.8rem;margin-bottom:20px;background:#f0f4ff;border-radius:8px;padding:7px 12px;border-left:3px solid #667eea}
+body{font-family:'Noto Sans TC','PingFang TC','Microsoft JhengHei',-apple-system,sans-serif;background:var(--bg);min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:20px}
+.container{background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 2px 16px rgba(26,46,34,.06);padding:40px;max-width:850px;width:100%}
+h1{font-size:2rem;text-align:center;color:var(--fg);margin-bottom:6px;font-family:'Noto Serif TC','Songti TC',PMingLiU,serif;font-weight:700;letter-spacing:.5px}
+.subtitle{text-align:center;color:var(--fg-soft);margin-bottom:8px;font-size:.92rem}
+.sort-info{text-align:center;color:var(--fg-muted);font-size:.8rem;margin-bottom:20px;background:var(--accent);border-radius:8px;padding:7px 12px;border-left:3px solid var(--primary)}
 .version-line{text-align:center;margin-bottom:14px}
-.version-btn{background:#f0f4ff;color:#667eea;border:1px solid #dde3f5;border-radius:20px;padding:3px 12px;font-size:.72rem;font-family:inherit;cursor:pointer;letter-spacing:.3px;transition:all .2s}
-.version-btn:hover{background:#667eea;color:#fff;border-color:#667eea}
+.version-btn{background:var(--accent);color:var(--primary);border:1px solid var(--border);border-radius:20px;padding:3px 12px;font-size:.72rem;font-family:inherit;cursor:pointer;letter-spacing:.3px;transition:all .2s}
+.version-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
 .modal-mask{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;justify-content:center;align-items:center;padding:20px;z-index:100}
 .modal-box{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .modal-head{position:sticky;top:0;background:#fff;display:flex;justify-content:space-between;align-items:center;padding:18px 22px 12px;border-bottom:1px solid #eee}
-.modal-head h3{color:#667eea;font-size:1.05rem}
-.modal-close{background:none;border:none;font-size:1.4rem;color:#999;cursor:pointer;line-height:1;padding:0 4px}
-.modal-close:hover{color:#333}
+.modal-head h3{color:var(--primary);font-size:1.05rem}
+.modal-close{background:none;border:none;font-size:1.4rem;color:var(--fg-muted);cursor:pointer;line-height:1;padding:0 4px}
+.modal-close:hover{color:var(--fg)}
 .modal-body{padding:16px 22px 22px}
 .cl-item{margin-bottom:18px}
-.cl-ver{display:inline-block;background:#667eea;color:#fff;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px}
+.cl-ver{display:inline-block;background:var(--primary);color:#fff;font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:10px}
 .cl-ver.old{background:#bbb}
-.cl-title{font-weight:600;color:#333;font-size:.88rem;margin:6px 0 4px}
+.cl-title{font-weight:600;color:var(--fg);font-size:.88rem;margin:6px 0 4px}
 .cl-item ul{margin:0;padding-left:19px}
-.cl-item li{color:#555;font-size:.83rem;line-height:1.65;margin-bottom:2px}
+.cl-item li{color:var(--fg-soft);font-size:.83rem;line-height:1.65;margin-bottom:2px}
 .login-box{max-width:360px;margin:0 auto}
-.login-box input{width:100%;padding:12px 16px;border:2px solid #ddd;border-radius:10px;font-size:1rem;margin-bottom:12px;outline:none;transition:border .3s}
-.login-box input:focus{border-color:#667eea}
-.login-error{color:#d63031;font-size:.85rem;margin-bottom:10px;display:none}
-.upload-area{border:3px dashed #667eea;border-radius:15px;padding:45px 20px;text-align:center;cursor:pointer;transition:all .3s;background:linear-gradient(135deg,rgba(102,126,234,.04),rgba(118,75,162,.04));margin-bottom:16px}
-.upload-area:hover,.upload-area.dragover{border-color:#764ba2;background:linear-gradient(135deg,rgba(102,126,234,.1),rgba(118,75,162,.1));transform:translateY(-2px)}
+.login-box input{width:100%;padding:12px 16px;border:1px solid var(--line);border-radius:10px;font-size:1rem;margin-bottom:12px;outline:none;transition:border .3s}
+.login-box input:focus{border-color:var(--primary)}
+.login-error{color:var(--danger);font-size:.85rem;margin-bottom:10px;display:none}
+.upload-area{border:2px dashed var(--primary);border-radius:15px;padding:45px 20px;text-align:center;cursor:pointer;transition:all .3s;background:var(--muted);margin-bottom:16px}
+.upload-area:hover,.upload-area.dragover{border-color:var(--primary-dark);background:var(--accent);transform:translateY(-2px)}
 .upload-icon{font-size:3rem;margin-bottom:10px}
 .badges{display:flex;justify-content:center;gap:6px;margin-top:10px;flex-wrap:wrap}
 .badge{padding:3px 10px;border-radius:12px;font-size:.75rem;font-weight:600}
-.badge-pdf{background:#ffeaa7;color:#d63031}.badge-img{background:#dfe6e9;color:#636e72}
+.badge-pdf{background:#ffeaa7;color:var(--danger)}.badge-img{background:#dfe6e9;color:#636e72}
 #fileInput{display:none}
 .file-list{margin-top:16px}
-.file-item{background:#f8f9fa;padding:12px 16px;border-radius:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
-.btn{width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:1.05rem;font-weight:600;cursor:pointer;transition:all .3s;margin-top:16px}
-.btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(102,126,234,.4)}
+.file-item{background:var(--muted);padding:12px 16px;border-radius:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
+.btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);font-size:1.05rem;font-weight:600;cursor:pointer;transition:all .3s;margin-top:16px}
+.btn:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(45,107,61,.25)}
 .btn:disabled{background:#ccc;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-outline{background:transparent;color:#667eea;border:2px solid #667eea;margin-top:10px}
-.btn-outline:hover{background:#667eea;color:#fff}
+.btn-outline{background:transparent;color:var(--primary);border:2px solid var(--primary);margin-top:10px}
+.btn-outline:hover{background:var(--primary);color:#fff}
 .results{margin-top:24px}
-.result-item{background:#fff;border-left:4px solid #667eea;padding:16px;border-radius:10px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.result-item{background:#fff;border-left:4px solid var(--primary);padding:16px;border-radius:10px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-.result-filename{font-weight:600;color:#333;font-size:.92rem}
-.result-badge{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:3px 12px;border-radius:16px;font-size:.78rem;font-weight:600}
+.result-filename{font-weight:600;color:var(--fg);font-size:.92rem}
+.result-badge{background:var(--primary);color:#fff;padding:3px 12px;border-radius:16px;font-size:.78rem;font-weight:600}
 .result-badge.error{background:#ff7675}
-.token-tag{background:#eef1f6;color:#8a94a6;padding:2px 9px;border-radius:12px;font-size:.72rem;margin-right:6px}
-.order-card{background:#f8f9fa;padding:12px 14px;border-radius:8px;margin-bottom:8px;border-left:3px solid #764ba2;font-size:.85rem}
-.order-label{font-weight:600;color:#667eea;min-width:150px;display:inline-block;vertical-align:top;padding-top:5px;font-size:.84rem}
-.editable-field{background:#fff;border:1px solid #ddd;border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 160px);display:inline-block;transition:border .2s}
-.editable-field:focus{outline:none;border-color:#667eea;background:#f0f4ff}
-.editable-field:hover{border-color:#aaa}
-.editable-field.is-empty{background:#fff5e6;border-color:#ffa940}
-.editable-field.is-empty:focus{background:#fff;border-color:#667eea}
-.editable-field.is-invalid{background:#ffe5e5;border-color:#d63031}
+.token-tag{background:var(--muted);color:var(--fg-muted);padding:2px 9px;border-radius:12px;font-size:.72rem;margin-right:6px}
+.order-card{background:var(--muted);padding:12px 14px;border-radius:8px;margin-bottom:8px;border-left:3px solid var(--primary-dark);font-size:.85rem}
+.order-label{font-weight:600;color:var(--primary);min-width:150px;display:inline-block;vertical-align:top;padding-top:5px;font-size:.84rem}
+.editable-field{background:#fff;border:1px solid var(--line);border-radius:4px;padding:5px 10px;font-size:.85rem;font-family:inherit;width:calc(100% - 160px);display:inline-block;transition:border .2s}
+.editable-field:focus{outline:none;border-color:var(--primary);background:var(--accent)}
+.editable-field:hover{border-color:var(--fg-muted)}
+.editable-field.is-empty{background:var(--warn-bg);border-color:var(--warn)}
+.editable-field.is-empty:focus{background:#fff;border-color:var(--primary)}
+.editable-field.is-invalid{background:#fdecee;border-color:var(--danger)}
 .field-row{margin-bottom:6px}
-.ragic-summary{background:#fff7e6;border-left:4px solid #fa8c16;padding:14px 16px;border-radius:10px;margin-top:18px}
-.ragic-summary h3{color:#d46b08;font-size:.95rem;margin-bottom:10px}
+.ragic-summary{background:var(--warn-bg);border-left:4px solid var(--warn);padding:14px 16px;border-radius:10px;margin-top:18px}
+.ragic-summary h3{color:var(--primary-dark);font-size:.95rem;margin-bottom:10px}
 .ragic-row{background:#fff;padding:8px 12px;border-radius:6px;margin-bottom:6px;font-size:.85rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
-.ragic-row.warn{background:#fff1f0;border-left:3px solid #d63031}
-.ragic-row .po{font-weight:700;color:#262626}
-.ragic-row .meta{color:#666;font-size:.8rem}
-.ragic-row .count{background:#f0f4ff;color:#667eea;padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:600}
-.ragic-warn-text{color:#d63031;font-size:.82rem;margin-top:8px}
+.ragic-row.warn{background:#fff1f0;border-left:3px solid var(--danger)}
+.ragic-row .po{font-weight:700;color:var(--fg)}
+.ragic-row .meta{color:var(--fg-soft);font-size:.8rem}
+.ragic-row .count{background:var(--accent);color:var(--primary);padding:2px 8px;border-radius:10px;font-size:.78rem;font-weight:600}
+.ragic-warn-text{color:var(--danger);font-size:.82rem;margin-top:8px}
 .match-panel{margin:4px 0 8px 160px;font-size:.8rem}
-.match-ocr{color:#666;padding:3px 0}
-.match-ocr b{color:#333;font-weight:600}
+.match-ocr{color:var(--fg-soft);padding:3px 0}
+.match-ocr b{color:var(--fg);font-weight:600}
 .match-alts{margin-top:4px}
-.match-alt{display:block;width:100%;text-align:left;background:#f4f6fb;border:1px solid #dde3f0;border-radius:6px;padding:4px 9px;margin-bottom:3px;cursor:pointer;font-size:.79rem;font-family:inherit;color:#333;transition:all .15s}
-.match-alt:hover{background:#e8edfa;border-color:#667eea}
-.match-alt .sc{color:#888;font-size:.74rem;margin-left:6px}
-.match-alt .hist{color:#c8860d;font-size:.74rem;margin-left:4px}
-.diff-hi{background:#ffe9a8;border-radius:2px;padding:0 2px;font-weight:600}
-.editable-field.is-disputed{background:#fffbe6;border-color:#faad14;border-width:2px}
-.verify-tag{display:inline-block;margin-left:8px;font-size:.75rem;color:#d48806;cursor:pointer;background:#fff7e6;border:1px solid #ffd591;border-radius:5px;padding:1px 8px}
-.verify-tag:hover{background:#ffe7ba}
-.verify-summary{background:#fffbe6;border-left:4px solid #faad14;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.82rem;color:#874d00}
-.verify-summary b{color:#613400}
+.match-alt{display:block;width:100%;text-align:left;background:var(--muted);border:1px solid var(--border);border-radius:6px;padding:4px 9px;margin-bottom:3px;cursor:pointer;font-size:.79rem;font-family:inherit;color:var(--fg);transition:all .15s}
+.match-alt:hover{background:var(--accent);border-color:var(--primary)}
+.match-alt .sc{color:var(--gold);font-size:.74rem;margin-left:6px;font-family:Georgia,serif}
+.match-alt .hist{color:var(--gold);font-size:.74rem;margin-left:4px}
+.diff-hi{background:#f5e6c8;border-radius:2px;padding:0 2px;font-weight:600}
+.editable-field.is-disputed{background:var(--warn-bg);border-color:var(--warn);border-width:2px}
+.verify-tag{display:inline-block;margin-left:8px;font-size:.75rem;color:var(--primary-dark);cursor:pointer;background:var(--warn-bg);border:1px solid var(--border);border-radius:5px;padding:1px 8px}
+.verify-tag:hover{background:var(--accent)}
+.verify-summary{background:var(--warn-bg);border-left:4px solid var(--warn);border-radius:8px;padding:8px 12px;margin:8px 0;font-size:.82rem;color:var(--muted-fg)}
+.verify-summary b{color:var(--fg)}
 .verify-ok{background:#f6ffed;border-left-color:#52c41a;color:#237804}
-.verify-toggle{display:flex;align-items:center;flex-wrap:wrap;gap:8px;background:#f8f9fa;border:1px solid #e6e8ec;border-radius:10px;padding:10px 14px;margin-top:16px;cursor:pointer;transition:all .2s}
-.verify-toggle:hover{border-color:#667eea;background:#f4f6fb}
-.verify-toggle input{width:16px;height:16px;cursor:pointer;accent-color:#667eea}
-.vt-text{font-size:.88rem;font-weight:600;color:#444}
-.vt-hint{font-size:.75rem;color:#999;flex-basis:100%;padding-left:24px}
-.verify-toggle.on{border-color:#faad14;background:#fffbe6}
-.verify-toggle.on .vt-text{color:#d48806}
+.verify-toggle{display:flex;align-items:center;flex-wrap:wrap;gap:8px;background:var(--muted);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-top:16px;cursor:pointer;transition:all .2s}
+.verify-toggle:hover{border-color:var(--primary);background:var(--muted)}
+.verify-toggle input{width:16px;height:16px;cursor:pointer;accent-color:var(--primary)}
+.vt-text{font-size:.88rem;font-weight:600;color:var(--fg)}
+.vt-hint{font-size:.75rem;color:var(--fg-muted);flex-basis:100%;padding-left:24px}
+.verify-toggle.on{border-color:var(--warn);background:var(--warn-bg)}
+.verify-toggle.on .vt-text{color:var(--primary-dark)}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none !important}
@@ -104,7 +135,7 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 
   <div id="loginSection" class="hidden">
     <div class="login-box" style="margin-top:30px">
-      <h3 style="text-align:center;color:#667eea;margin-bottom:16px">🔒 請輸入密碼</h3>
+      <h3 style="text-align:center;color:var(--primary);margin-bottom:16px">🔒 請輸入密碼</h3>
       <input type="password" id="passwordInput" placeholder="密碼" autocomplete="off">
       <div class="login-error" id="loginError"></div>
       <button class="btn" id="loginBtn" onclick="doLogin()">登入</button>
@@ -118,8 +149,8 @@ h1{font-size:2.2rem;text-align:center;background:linear-gradient(135deg,#667eea,
 
     <div class="upload-area" id="uploadArea">
       <div class="upload-icon">📤</div>
-      <h3 style="color:#667eea;font-weight:600">拖放檔案到這裡，或點擊選擇</h3>
-      <p style="color:#999;font-size:.85rem;margin-top:4px">最多 20 個檔案，單檔上限 20MB</p>
+      <h3 style="color:var(--primary);font-weight:600">拖放檔案到這裡，或點擊選擇</h3>
+      <p style="color:var(--fg-muted);font-size:.85rem;margin-top:4px">最多 20 個檔案，單檔上限 20MB</p>
       <div class="badges">
         <span class="badge badge-pdf">📑 PDF</span>
         <span class="badge badge-img">🖼 JPG</span>
@@ -208,19 +239,43 @@ const FIELD_LABELS = {
   warranty:     '保固月數',
 };
 
-// 預覽時顯示的欄位順序 (Ragic 寫入用欄位放最前面)
-const DISPLAY_FIELDS = [
-  'ragic_po','ragic_customer_code','ragic_product_name',
-  'hospital','date','deadline','vendor','loc','type','material_id',
-  'item','brand','qty','unit','price','total',
-  'dept','user','ext',
-  'po_no','item_id','sign_no','order_total',
-  'note','warranty'
-];
+// Ragic 寫入用的欄位固定放最前面 (這幾格是你要確認/填寫的)
+const RAGIC_FIELDS = ['ragic_po','ragic_customer_code','ragic_product_name'];
+
+// OCR 欄位順序：依訂單類型排成跟紙本相近的閱讀動線
+const FIELD_ORDER = {
+  // 合約品項：先看單據識別資訊，再看品項規格
+  contract: [
+    'type','idx','hospital','loc','po_no','item_id','sign_no',
+    'date','deadline','vendor','dept','user','ext',
+    'material_id','brand','item','unit','qty','price','note',
+    'total','warranty','order_total',
+  ],
+  // 一般訂單：先看誰下的單，再看買什麼、多少錢
+  general: [
+    'type','date','vendor','hospital','loc',
+    'item','qty','unit','price','total','brand','deadline',
+    'dept','user','ext','po_no','item_id','idx','warranty',
+    'sign_no','material_id','note','order_total',
+  ],
+};
+
+/** 依該筆訂單的類型決定欄位顯示順序 */
+function displayFieldsFor(order) {
+  const t = String(order?.type || '');
+  const key = t.includes('合約') ? 'contract' : 'general';
+  return RAGIC_FIELDS.concat(FIELD_ORDER[key]);
+}
 
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.2.0', title: '換上公司品牌主題', items: [
+    '配色改用公司網站的森林綠 + 質感金 + 米白底',
+    '標題改用思源宋體、內文思源黑體，與官網一致',
+    '欄位順序依訂單類型調整：合約品項與一般訂單各有適合的閱讀動線',
+    '修正：訂單內容較長時上半部會被切掉、捲不到的問題',
+  ]},
   { v: '3.1.1', title: '交叉驗證改成開關', items: [
     '雙模型驗證預設關閉，平常只用主模型辨識，維持原本費用',
     '需要時勾選「🔍 雙模型交叉驗證」再按預覽即可',
@@ -904,7 +959,7 @@ function renderFileList() {
   $('fileList').innerHTML = '';
   selectedFiles.forEach(f => {
     const isPDF = f.name.toLowerCase().endsWith('.pdf');
-    $('fileList').innerHTML += `<div class="file-item"><span><b>${isPDF?'📑':'🖼'} ${f.name}</b><span style="color:#999;font-size:.78rem;margin-left:6px">${isPDF?'PDF':'圖片'} · ${(f.size/1024).toFixed(0)}KB</span></span><span style="color:#b8860b;font-size:.8rem">待處理</span></div>`;
+    $('fileList').innerHTML += `<div class="file-item"><span><b>${isPDF?'📑':'🖼'} ${f.name}</b><span style="color:var(--fg-muted);font-size:.78rem;margin-left:6px">${isPDF?'PDF':'圖片'} · ${(f.size/1024).toFixed(0)}KB</span></span><span style="color:#b8860b;font-size:.8rem">待處理</span></div>`;
   });
 }
 
@@ -1094,9 +1149,12 @@ $('submitBtn').addEventListener('click', async () => {
   finally { $('submitBtn').disabled=false; $('submitBtn').textContent='✅ 確認寫入 Google Sheet + Ragic'; }
 });
 
+let lastResults = [];
+
 function displayResults(resultsData, showSubmit) {
+  lastResults = resultsData;
   const el = $('results');
-  el.innerHTML = '<h2 style="color:#667eea;margin-bottom:16px">📊 辨識結果（可直接點擊修改）</h2>';
+  el.innerHTML = '<h2 style="color:var(--primary);margin-bottom:16px">📊 辨識結果（可直接點擊修改）</h2>';
 
   let globalIdx = 0;
   resultsData.forEach(r => {
@@ -1137,9 +1195,9 @@ function displayResults(resultsData, showSubmit) {
       let ordersHTML = '';
       orders.forEach((o,i)=>{
         ordersHTML += `<div class="order-card">
-          <div style="font-weight:700;color:#764ba2;margin-bottom:8px">品項 ${i+1}: ${o.item||'—'}</div>`;
+          <div style="font-weight:700;color:var(--primary-dark);margin-bottom:8px">品項 ${i+1}: ${o.item||'—'}</div>`;
 
-        DISPLAY_FIELDS.forEach(k => {
+        displayFieldsFor(o).forEach(k => {
           const val = (o[k] !== undefined && o[k] !== null) ? o[k] : '';
           const isEmpty = (val === '' || val === 0 || val === '0');
           const label = FIELD_LABELS[k] || k;
@@ -1150,7 +1208,7 @@ function displayResults(resultsData, showSubmit) {
             const matched = findCustomer(curCode);
             const inputVal = matched ? customerDisplay(matched) : curCode;
             const taxHint = matched
-              ? `<span style="color:#666;font-size:.78rem;margin-left:8px">→ 類別 ${matched.category}，營業稅 ${matched.category==='醫院'?'0%':'5%'}</span>`
+              ? `<span style="color:var(--fg-soft);font-size:.78rem;margin-left:8px">→ 類別 ${matched.category}，營業稅 ${matched.category==='醫院'?'0%':'5%'}</span>`
               : (curCode ? `<span style="color:#d63031;font-size:.78rem;margin-left:8px">⚠ 找不到客戶 "${curCode}"</span>` : '');
             const inputCls = (!matched ? 'is-empty' : '');
             ordersHTML += `<div class="field-row">
@@ -1253,7 +1311,7 @@ function displayResults(resultsData, showSubmit) {
   }
 
   // 編輯到會影響 Ragic 摘要的欄位時自動重算
-  const watchFields = new Set(['po_no','date','vendor','loc','ragic_po','ragic_customer_code']);
+  const watchFields = new Set(['po_no','date','vendor','loc','ragic_po','ragic_customer_code','type']);
   document.querySelectorAll('.editable-field').forEach(input => {
     input.addEventListener('input', () => {
       const field = input.dataset.field;
@@ -1303,6 +1361,18 @@ function displayResults(resultsData, showSubmit) {
         rematchProductsForGroup(myPo, cust);
       }
 
+      // 訂單類型改了 → 欄位顯示順序不同，整份重新渲染
+      if (field === 'type') {
+        collectEdits();
+        const snapshot = pendingOrders.slice();
+        pendingOrders = [];
+        displayResults(lastResults, true);
+        // 保留使用者已編輯的內容
+        snapshot.forEach((o, i) => { if (pendingOrders[i]) Object.assign(pendingOrders[i], o); });
+        collectEdits();
+        renderRagicSummary();
+        return;
+      }
       if (!watchFields.has(field)) return;
       collectEdits();
       renderRagicSummary();
