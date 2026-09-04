@@ -46,11 +46,10 @@ h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;fo
 #fileInput{display:none}
 .file-list{margin-top:16px}
 .file-item{background:var(--muted);padding:12px 16px;border-radius:10px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-size:.9rem}
-.btn{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius);font-size:1.05rem;font-weight:600;cursor:pointer;transition:all .3s;margin-top:16px}
-.btn:hover{transform:translateY(-2px);box-shadow:0 4px 14px rgba(45,107,61,.25)}
-.btn:disabled{background:#ccc;cursor:not-allowed;transform:none;box-shadow:none}
-.btn-outline{background:transparent;color:var(--primary);border:2px solid var(--primary);margin-top:10px}
-.btn-outline:hover{background:var(--primary);color:#fff}
+.btn{width:100%;padding:13px;background:var(--card);color:var(--brand);border:2px solid var(--brand);border-radius:var(--radius);font-size:1rem;font-weight:700;cursor:pointer;transition:all .2s;margin-top:16px;letter-spacing:.5px}
+.btn:hover{background:var(--brand);color:#fff;box-shadow:0 4px 14px rgba(45,107,61,.2)}
+.btn:disabled{background:var(--card);color:var(--fg-muted);border-color:var(--line);cursor:not-allowed;box-shadow:none}
+.btn-outline{margin-top:10px}
 .results{margin-top:24px}
 .result-item{background:#fff;border-left:4px solid var(--primary);padding:16px;border-radius:10px;margin-bottom:12px;box-shadow:0 4px 12px rgba(0,0,0,.08)}
 .result-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
@@ -266,6 +265,10 @@ function displayFieldsFor(order) {
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.5.1', title: '按鈕改為線框樣式', items: [
+    '按鈕改成白底綠框，滑過才填色，畫面更清爽',
+    '工具箱的按鈕也統一成同一種樣式',
+  ]},
   { v: '3.5.0', title: '辨識進度顯示', items: [
     '多檔上傳時逐份顯示進度，看得到跑到第幾份',
     '每個檔案標示：待處理／辨識中／完成幾品項／失敗原因',
