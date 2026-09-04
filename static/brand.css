@@ -47,3 +47,21 @@
 .sf-nav a:hover{color:var(--brand); background:var(--bg-soft)}
 .sf-nav a.on{color:var(--brand); border-bottom-color:var(--brand); font-weight:700}
 @media print{.sf-nav{display:none!important}}
+
+/* ---- 共用頁面標題（以 OCR 頁為模板）---- */
+.page-head{text-align:center;padding:26px 0 18px}
+.page-head h1,
+h1.page-title{
+  font-family:var(--serif); font-size:var(--fs-h1); font-weight:700;
+  color:var(--fg); letter-spacing:.5px; text-align:center; margin:0 0 6px;
+  line-height:1.3;
+}
+.page-head .subtitle,
+.page-subtitle{
+  text-align:center; color:var(--fg-soft); font-size:.92rem; margin:0 0 8px;
+}
+/* 標題下方的細金線，呼應官網 */
+.page-head::after{
+  content:''; display:block; width:44px; height:2px;
+  background:var(--gold); margin:14px auto 0; opacity:.8;
+}

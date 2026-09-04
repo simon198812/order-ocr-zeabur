@@ -74,15 +74,11 @@ body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);
   font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased}
 .wrap{max-width:var(--page-w);margin:0 auto;padding:28px 20px 60px}
 
-.masthead{display:flex;flex-wrap:wrap;align-items:flex-end;gap:20px;
-  padding-bottom:18px;border-bottom:2px solid var(--ink)}
-.mast-main{flex:1 1 320px;min-width:0}
+.masthead{display:block}
+
 .eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.18em;
-  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px}
-h1{font-family:var(--serif);font-size:var(--fs-h1);font-weight:700;letter-spacing:.02em;margin:0;
-  line-height:1.25;text-wrap:balance}
-.tagline{margin:8px 0 0;color:var(--ink-2);font-size:14px;max-width:58ch}
-.mast-tools{display:flex;gap:8px;flex-wrap:wrap}
+  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px;text-align:center;display:block}
+.mast-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px}
 
 .banner{display:flex;gap:11px;align-items:flex-start;margin:18px 0 0;padding:12px 15px;
   background:var(--accent-soft);border-left:3px solid var(--accent-hi);border-radius:0 4px 4px 0;
@@ -507,12 +503,10 @@ dialog.changelog::backdrop{background:rgba(10,14,18,.55)}
 
 <div class="wrap">
 
-  <header class="masthead">
-    <div class="mast-main">
-      <span class="eyebrow">Stainless Fabrication · Cost · Quote · Make-or-Buy</span>
-      <h1>不鏽鋼估價台</h1>
-      <p class="tagline">依一廠實際製程建的成本模型：拆圖、板材線、管材線、加工件線，匯流到組焊與表面處理。附外廠報價逆向反推。</p>
-    </div>
+  <header class="page-head masthead">
+    <span class="eyebrow">Stainless Fabrication · Cost · Quote · Make-or-Buy</span>
+    <h1>📐 不鏽鋼估價台</h1>
+    <p class="subtitle">依一廠實際製程建的成本模型：拆圖、板材線、管材線、加工件線，匯流到組焊與表面處理</p>
     <div class="mast-tools">
       <button class="ver-badge" id="verBadge" type="button" title="看版本更新重點">v5 ▾</button>
       <button class="btn" id="btnReset" type="button">回到預設值</button>
