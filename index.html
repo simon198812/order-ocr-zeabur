@@ -97,6 +97,19 @@ h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;fo
 .vt-hint{font-size:.75rem;color:var(--fg-muted);flex-basis:100%;padding-left:24px}
 .verify-toggle.on{border-color:var(--warn);background:var(--warn-bg)}
 .verify-toggle.on .vt-text{color:var(--primary-dark)}
+.file-size{color:var(--fg-muted);font-size:.78rem;margin-left:6px}
+.file-state{font-size:.8rem;color:var(--fg-muted);white-space:nowrap;display:flex;align-items:center;gap:5px}
+.file-item{transition:background .2s,border-color .2s;border:1px solid transparent}
+.file-item.is-running{background:var(--bg-soft);border-color:var(--brand-soft)}
+.file-item.is-running .file-state{color:var(--brand)}
+.file-item.is-done .file-state{color:var(--brand)}
+.file-item.is-error{background:#fdecee;border-color:#f3c9cd}
+.file-item.is-error .file-state{color:var(--danger)}
+.progress-bar{margin-top:12px}
+.progress-track{height:6px;background:var(--bg-deep);border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;width:0;background:var(--brand);border-radius:99px;transition:width .35s ease}
+.progress-text{margin-top:6px;font-size:.8rem;color:var(--fg-soft);text-align:center}
+.loading-sm{width:12px!important;height:12px!important;border-width:2px!important;border-color:var(--brand-soft)!important;border-top-color:var(--brand)!important;margin:0!important}
 .loading{display:inline-block;width:18px;height:18px;border:3px solid rgba(255,255,255,.5);border-radius:50%;border-top-color:#fff;animation:spin .8s linear infinite;vertical-align:middle;margin-right:6px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .hidden{display:none !important}
@@ -141,6 +154,10 @@ h1{font-size:var(--fs-h1);text-align:center;color:var(--fg);margin-bottom:6px;fo
     <input type="file" id="fileInput" multiple accept="image/*,.pdf">
 
     <div class="file-list" id="fileList"></div>
+    <div class="progress-bar hidden" id="progressBar">
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-text" id="progressText"></div>
+    </div>
     <label class="verify-toggle" id="verifyToggleWrap">
       <input type="checkbox" id="verifyToggle">
       <span class="vt-text">🔍 雙模型交叉驗證</span>
@@ -249,6 +266,12 @@ function displayFieldsFor(order) {
 // ============ 版本更新紀錄 ============
 // 新版本請加在最前面
 const CHANGELOG = [
+  { v: '3.5.0', title: '辨識進度顯示', items: [
+    '多檔上傳時逐份顯示進度，看得到跑到第幾份',
+    '每個檔案標示：待處理／辨識中／完成幾品項／失敗原因',
+    '上方進度條與按鈕同步顯示 N / 總數',
+    '單一檔案失敗不影響其他檔案，其餘照常完成',
+  ]},
   { v: '3.4.0', title: '導覽簡化與上傳區線框', items: [
     '拿掉「工作多功能工具箱」標題列與第二層分頁',
     '板材計算、利潤計算機、圖片排版直接放在上方導覽列',
@@ -960,30 +983,103 @@ function handleFiles(files) {
 }
 
 function renderFileList() {
-  $('fileList').innerHTML = '';
-  selectedFiles.forEach(f => {
-    $('fileList').innerHTML += `<div class="file-item"><span><b>📑 ${f.name}</b><span style="color:var(--fg-muted);font-size:.78rem;margin-left:6px">${(f.size/1024).toFixed(0)}KB</span></span><span style="color:var(--gold);font-size:.8rem">待處理</span></div>`;
-  });
+  $('fileList').innerHTML = selectedFiles.map((f, i) => `
+    <div class="file-item" id="file-${i}">
+      <span><b>📑 ${f.name}</b><span class="file-size">${(f.size/1024).toFixed(0)}KB</span></span>
+      <span class="file-state" id="file-state-${i}">待處理</span>
+    </div>`).join('');
 }
+
+// 逐檔更新狀態，讓你看得到跑到哪一份
+function setFileState(i, state, info) {
+  const row = $(`file-${i}`), el = $(`file-state-${i}`);
+  if (!el) return;
+  row?.classList.remove('is-running','is-done','is-error');
+  const map = {
+    waiting:  ['待處理', ''],
+    running:  ['<span class="loading loading-sm"></span>辨識中…', 'is-running'],
+    done:     [`✓ ${info ?? ''}`, 'is-done'],
+    error:    [`✗ ${info ?? '失敗'}`, 'is-error'],
+  };
+  const [html, cls] = map[state] || map.waiting;
+  el.innerHTML = html;
+  if (cls) row?.classList.add(cls);
+}
+
+// 總進度列
+function setProgress(done, total) {
+  const bar = $('progressBar');
+  if (!bar) return;
+  if (!total) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const pct = Math.round(done / total * 100);
+  $('progressFill').style.width = pct + '%';
+  $('progressText').textContent = `辨識中　${done} / ${total} 份完成`;
+  if (done === total) $('progressText').textContent = `✓ ${total} 份全部完成`;
+}
+
+/** 限制同時進行的數量，避免一次打太多 API */
+async function runWithLimit(items, limit, worker) {
+  const results = new Array(items.length);
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (next < items.length) {
+        const i = next++;
+        results[i] = await worker(items[i], i);
+      }
+    })
+  );
+  return results;
+}
+
+// 同時處理幾份。開了雙模型驗證時每份要打兩次 API，所以放慢一點
+const CONCURRENCY = 2;
 
 $('previewBtn').addEventListener('click', async () => {
   if(!selectedFiles.length) return;
-  $('previewBtn').disabled=true;
-  $('previewBtn').innerHTML='<span class="loading"></span>OCR 辨識中...';
-  $('results').innerHTML='';
-  pendingOrders=[];
+  const total = selectedFiles.length;
+  const verifyOn = $('verifyToggle')?.checked ? 1 : 0;
 
-  const fd = new FormData();
-  selectedFiles.forEach(f=>fd.append('files',f));
+  $('previewBtn').disabled = true;
+  $('results').innerHTML = '';
+  pendingOrders = [];
+  selectedFiles.forEach((_, i) => setFileState(i, 'waiting'));
+
+  let done = 0;
+  setProgress(0, total);
+  $('previewBtn').innerHTML = `<span class="loading"></span>辨識中… 0 / ${total}`;
 
   try {
-    const verifyOn = $('verifyToggle')?.checked ? 1 : 0;
-    const r = await fetch(`/preview?verify=${verifyOn}`,{method:'POST',body:fd});
-    if(!r.ok) throw new Error(`HTTP ${r.status}`);
-    const d = await r.json();
-    displayResults(d.results, true);
-  } catch(e) { alert('處理失敗: '+e.message); }
-  finally { $('previewBtn').disabled=false; $('previewBtn').textContent='📋 預覽辨識結果'; }
+    // 一份一份送，才能逐份回報進度 (後端不變，仍是同一個 /preview)
+    const results = await runWithLimit(selectedFiles, CONCURRENCY, async (file, i) => {
+      setFileState(i, 'running');
+      try {
+        const fd = new FormData();
+        fd.append('files', file);
+        const r = await fetch(`/preview?verify=${verifyOn}`, { method:'POST', body:fd });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const d = await r.json();
+        const res = (d.results && d.results[0]) || { filename:file.name, status:'error', message:'沒有回傳結果' };
+        setFileState(i, res.status === 'success' ? 'done' : 'error',
+                     res.status === 'success' ? `${res.items_count} 品項` : res.message);
+        return res;
+      } catch (e) {
+        setFileState(i, 'error', e.message);
+        return { filename:file.name, status:'error', message:e.message };
+      } finally {
+        done++;
+        setProgress(done, total);
+        $('previewBtn').innerHTML = `<span class="loading"></span>辨識中… ${done} / ${total}`;
+      }
+    });
+    displayResults(results, true);
+  } catch(e) {
+    alert('處理失敗: ' + e.message);
+  } finally {
+    $('previewBtn').disabled = false;
+    $('previewBtn').textContent = '📋 預覽辨識結果';
+  }
 });
 
 function collectEdits() {
